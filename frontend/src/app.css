@@ -1,0 +1,147 @@
+@import "tailwindcss";
+
+@theme {
+  --color-hotel-bg: #1A0F0A;
+  --color-hotel-surface: #2D1B14;
+  --color-hotel-surface-hover: #3D261C;
+  --color-hotel-border: #4A352C;
+
+  --color-hotel-text-primary: #F2EFE9;
+  --color-hotel-text-secondary: #BDB2A7;
+  --color-hotel-text-tertiary: #827066;
+
+  --color-hotel-gold: #B38E5D;
+  --color-hotel-gold-light: #D9C5A3;
+  --color-hotel-gold-dark: #735C3D;
+
+  --color-hotel-success: #2D6A4F;
+  --color-hotel-error: #9B2226;
+  --color-hotel-info: #1E3A5F;
+  --color-hotel-vip: #582F7E;
+
+  --color-hotel-success-light: #3D8A66;
+  --color-hotel-error-light: #C0393E;
+  --color-hotel-info-light: #2E5490;
+  --color-hotel-vip-light: #7340A0;
+
+  --shadow-hotel-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-hotel-md: 0 6px 20px rgba(0, 0, 0, 0.5);
+  --shadow-hotel-lg: 0 16px 40px rgba(0, 0, 0, 0.6);
+  --shadow-hotel-gold: 0 0 24px rgba(179, 142, 93, 0.2);
+
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-ui: "Plus Jakarta Sans", system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--color-hotel-bg);
+    color: var(--color-hotel-text-primary);
+    font-family: var(--font-ui);
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--color-hotel-bg);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-hotel-border);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-hotel-gold);
+  }
+
+  ::selection {
+    background-color: rgba(179, 142, 93, 0.25);
+    color: var(--color-hotel-text-primary);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-hotel-gold);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .card-hotel {
+    background-color: var(--color-hotel-surface);
+    border: 1px solid var(--color-hotel-border);
+    border-radius: 0.5rem;
+    box-shadow: var(--shadow-hotel-md);
+    padding: 1.5rem;
+    transition: all 0.2s;
+  }
+
+  .card-hotel:hover {
+    border-color: var(--color-hotel-gold-dark);
+    box-shadow: var(--shadow-hotel-lg);
+  }
+
+  .btn-gold {
+    background-color: var(--color-hotel-gold);
+    color: var(--color-hotel-bg);
+    padding: 0.5rem 1.25rem;
+    border-radius: 0.25rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .btn-gold:hover {
+    background-color: var(--color-hotel-gold-light);
+    box-shadow: var(--shadow-hotel-gold);
+    transform: translateY(-1px);
+  }
+
+  .input-hotel {
+    background-color: var(--color-hotel-bg);
+    border: 1px solid var(--color-hotel-border);
+    border-radius: 0.25rem;
+    padding: 0.5rem 0.75rem;
+    color: var(--color-hotel-text-primary);
+    font-size: 0.875rem;
+    width: 100%;
+    transition: all 0.2s;
+  }
+
+  .input-hotel:focus {
+    border-color: var(--color-hotel-gold);
+    box-shadow: 0 0 0 3px rgba(179, 142, 93, 0.12);
+    outline: none;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.65rem;
+    border-radius: 9999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .badge-success {
+    background-color: rgba(45, 106, 79, 0.2);
+    color: #4CAF82;
+    border: 1px solid rgba(45, 106, 79, 0.4);
+  }
+}

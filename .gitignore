@@ -1,0 +1,28 @@
+# --- ORQUESTADOR (Raíz) ---
+node_modules/
+.env
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- BACKEND (Django) ---
+**/__pycache__/
+*.pyc
+backend/venv/
+backend/env/
+backend/__pycache__/
+backend/*.py[cod]
+database/*.sqlite3
+backend/*.db
+backend/staticfiles/
+backend/media/
+backend/*.log
+
+# --- FRONTEND (SvelteKit) ---
+frontend/node_modules/
+frontend/.svelte-kit/
+frontend/.vscode/
+frontend/build/
+frontend/.env*
+frontend/npm-debug.log*
