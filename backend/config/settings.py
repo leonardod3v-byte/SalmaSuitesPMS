@@ -5,8 +5,6 @@ from datetime import timedelta
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ── Cargar variables de entorno desde .env ─────────────────────────────────
-# Se hace antes de cualquier otra configuración para que todas
-# las variables estén disponibles desde el inicio
 env_path = BASE_DIR / '.env'
 if env_path.exists():
     with open(env_path, encoding='utf-8') as f:
@@ -54,8 +52,6 @@ INSTALLED_APPS = [
 ]
 
 # ── Middleware ─────────────────────────────────────────────────────────────
-# CorsMiddleware debe ir primero para manejar los preflight OPTIONS
-# antes de que cualquier otro middleware procese el request
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -97,7 +93,6 @@ DATABASES = {
 }
 
 # ── Modelo de usuario personalizado ───────────────────────────────────────
-# Debe declararse antes de la primera migración y no cambiarse después
 AUTH_USER_MODEL = 'users.User'
 
 # ── Internacionalización ───────────────────────────────────────────────────
@@ -115,12 +110,10 @@ MEDIA_ROOT  = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # ── Django REST Framework ──────────────────────────────────────────────────
-# Se usa una clase de autenticación personalizada que exime la verificación
-# CSRF para permitir que el frontend SvelteKit consuma la API sin necesidad
-# de manejar tokens CSRF manualmente en cada request
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
+        'apps.users.authentication.CookieTokenAuthentication',  # Cookie primero
+        'rest_framework.authentication.TokenAuthentication',    # Header Authorization (fallback)
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
@@ -128,9 +121,6 @@ REST_FRAMEWORK = {
 }
 
 # ── CORS ───────────────────────────────────────────────────────────────────
-# Permite que el frontend en localhost:5173 consuma la API en localhost:8000
-# CORS_ALLOW_CREDENTIALS es necesario para que las cookies de sesión
-# se envíen en los requests cross-origin
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS   = [
     'http://localhost:5173',
@@ -149,26 +139,24 @@ CORS_ALLOW_HEADERS = [
 ]
 
 # ── CSRF ───────────────────────────────────────────────────────────────────
-# Los orígenes de confianza son necesarios aunque usemos CsrfExempt
-# porque Django los verifica en algunas situaciones adicionales
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
 ]
 
 # ── Cookies de sesión ──────────────────────────────────────────────────────
-# SameSite=Lax permite que las cookies se envíen en navegación
-# cross-origin sin requerir HTTPS en desarrollo
-SESSION_COOKIE_DOMAIN = None  # Dejar en None para desarrollo local
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_SECURE   = False  # True solo en producción con HTTPS
 CSRF_COOKIE_SAMESITE    = 'Lax'
 CSRF_COOKIE_SECURE      = False  # True solo en producción con HTTPS
 
+
+# ── Cookie de autenticación ────────────────────────────────────────────────
+AUTH_TOKEN_COOKIE_NAME = 'auth_token'
+AUTH_TOKEN_COOKIE_MAX_AGE = 60 * 60 * 24 * 7  # 7 días
+
 # ── Email (Gmail SMTP) ─────────────────────────────────────────────────────
-# Usado para enviar códigos de recuperación de contraseña (RF01)
-# Las credenciales se cargan desde .env para no exponerlas en el código
 EMAIL_BACKEND       = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST          = 'smtp.gmail.com'
 EMAIL_PORT          = 587
@@ -181,9 +169,26 @@ DEFAULT_FROM_EMAIL  = os.environ.get(
 )
 
 # ── Simple JWT ─────────────────────────────────────────────────────────────
-# Usado para generar tokens temporales en el flujo de recuperación
-# de contraseña. Access token de corta duración por seguridad
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME':  timedelta(minutes=15),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 }
+
+# ── Caché ──────────────────────────────────────────────────────────────────
+# En desarrollo: memoria local (sin dependencias extra)
+# En producción: cambiar a Redis con django-redis
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'salmasuite-cache',
+    }
+}
+
+# Cuando tengas Redis en producción, reemplaza por:
+# CACHES = {
+#     'default': {
+#         'BACKEND': 'django_redis.cache.RedisCache',
+#         'LOCATION': os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/1'),
+#         'OPTIONS': { 'CLIENT_CLASS': 'django_redis.client.DefaultClient' },
+#     }
+# }

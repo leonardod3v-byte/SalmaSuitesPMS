@@ -9,6 +9,20 @@ class Reserva(models.Model):
     Modelo principal de reservas (RF05).
     Maneja el ciclo completo: desde la creación hasta check-out o no-show.
     """
+    TIPOS_CLIENTE = [
+        ('particular',  'Particular'),
+        ('militar',     'Militar / GN'),
+        ('politico',    'Político / Gov.'),
+        ('artista',     'Artista / Medios'),
+        ('empresarial', 'Empresarial'),
+        ('deportista',  'Deportista'),
+        ('diplomatico', 'Diplomático'),
+        ('medico',      'Personal Médico'),
+        ('religioso',   'Religioso'),
+        ('turista',     'Turista / Agencia'),
+    ]
+
+
     ESTADOS = [
         ('pendiente', 'Pendiente'),
         ('sin_pagar', 'Sin Pagar'),
@@ -86,6 +100,10 @@ class Reserva(models.Model):
     notas = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    tipo_cliente = models.CharField(
+    max_length=20, choices=TIPOS_CLIENTE, default='particular'
+    )
 
     class Meta:
         db_table = 'reservas'

@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
+import { goto } from '$app/navigation';
 
-// ── Tipado Estricto ────────────────────────────────────────────────────────
 export interface User {
     id: number;
     username: string;
@@ -13,35 +13,31 @@ export interface User {
 
 interface AuthState {
     user: User | null;
-    token: string | null;
     isAuthenticated: boolean;
     loading: boolean;
 }
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
-const getInitialState = (): AuthState => {
-    if (!browser) return { user: null, token: null, isAuthenticated: false, loading: false };
-
-    try {
-        const user = localStorage.getItem('user');
-        const token = localStorage.getItem('token');
-        return {
-            user: user ? JSON.parse(user) : null,
-            token: token || null,
-            isAuthenticated: !!token,
-            loading: false
-        };
-    } catch {
-        return { user: null, token: null, isAuthenticated: false, loading: false };
-    }
-};
-
 function createAuthStore() {
-    const { subscribe, set, update } = writable<AuthState>(getInitialState());
+    // Estado inicial vacío — la fuente de verdad es el servidor (locals.user)
+    const { subscribe, set, update } = writable<AuthState>({
+        user: null,
+        isAuthenticated: false,
+        loading: false,
+    });
 
     return {
         subscribe,
+
+        // Llamado desde +layout.svelte para hidratar el store con datos SSR
+        init(user: User | null) {
+            set({
+                user,
+                isAuthenticated: !!user,
+                loading: false,
+            });
+        },
 
         async login(username: string, password: string): Promise<User> {
             update(s => ({ ...s, loading: true }));
@@ -50,68 +46,53 @@ function createAuthStore() {
                 const res = await fetch(`${API_URL}/auth/login/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
+                    // credentials: 'include' es CRÍTICO para que el browser
+                    // guarde la cookie HttpOnly que Django devuelve
+                    credentials: 'include',
+                    body: JSON.stringify({ username, password }),
                 });
 
-                const data = await res.json().catch(() => ({ detail: 'Error de respuesta del servidor' }));
+                const data = await res.json().catch(() => ({}));
 
                 if (!res.ok) {
-                    throw new Error(data?.non_field_errors?.[0] || data?.detail || 'Credenciales inválidas');
+                    throw new Error(
+                        data?.non_field_errors?.[0] || data?.detail || 'Credenciales inválidas'
+                    );
                 }
 
                 const newState: AuthState = {
                     user: data.user,
-                    token: data.token,
                     isAuthenticated: true,
-                    loading: false
+                    loading: false,
                 };
-
-                if (browser) {
-                    localStorage.setItem('token', data.token);
-                    localStorage.setItem('user', JSON.stringify(data.user));
-                    document.cookie = `token=${data.token}; path=/; max-age=604800; samesite=strict`;
-                }
 
                 set(newState);
                 return data.user;
 
             } catch (error: any) {
                 update(s => ({ ...s, loading: false }));
-                throw error.message || 'Error de conexión';
+                throw error instanceof Error ? error : new Error('Error de conexión');
             }
         },
 
-        logout() {
+        async logout() {
             if (!browser) return;
 
-            const token = localStorage.getItem('token');
-            
-            set({ user: null, token: null, isAuthenticated: false, loading: false });
-            localStorage.clear();
-            sessionStorage.clear();
-
-            document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; samesite=strict";
-
-            if (token) {
-                fetch(`${API_URL}/auth/logout/`, {
+            try {
+                // Django limpia la cookie desde el servidor
+                await fetch(`${API_URL}/auth/logout/`, {
                     method: 'POST',
-                    headers: { 'Authorization': `Token ${token}` }
-                }).catch(() => {});
+                    credentials: 'include',
+                });
+            } catch {
+                // Si falla el fetch, igual limpiamos el estado local
             }
 
-            window.location.href = '/login';
+            set({ user: null, isAuthenticated: false, loading: false });
+            // Usar goto para que SvelteKit recargue y hooks.server.ts detecte
+            // que la cookie fue borrada
+            goto('/login', { invalidateAll: true });
         },
-
-        updateUser(newUserData: Partial<User>) {
-            update(s => {
-                if (!s.user) return s;
-                const updatedUser = { ...s.user, ...newUserData };
-                if (browser) {
-                    localStorage.setItem('user', JSON.stringify(updatedUser));
-                }
-                return { ...s, user: updatedUser };
-            });
-        }
     };
 }
 

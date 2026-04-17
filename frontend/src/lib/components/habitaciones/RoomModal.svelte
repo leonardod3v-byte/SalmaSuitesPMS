@@ -3,12 +3,12 @@
   import { toast } from '$lib/stores/toast';
   import { auth } from '$lib/stores/auth';
 
+  // Props con desestructuración reactiva
   let { data = null, modo = 'ver', tipos = [], onclose, onupdated } = $props();
 
   const isAdmin = $derived($auth?.user?.role === 'admin');
   let vista = $state<'detalle' | 'form'>(modo === 'crear' ? 'form' : 'detalle');
 
-  // Estados con paleta de app.css
   const ESTADO_META = {
     libre:         { label: 'Disponible', color: 'var(--color-hotel-success-light)', bg: 'rgba(45,106,79,0.1)' },
     limpia:        { label: 'Limpia',     color: 'var(--color-hotel-success-light)', bg: 'rgba(45,106,79,0.1)' },
@@ -22,12 +22,20 @@
   let guardando = $state(false);
   let errorForm = $state('');
 
-  // Formulario reactivo
+  // Sincronizar estado cuando la data cambie (Solución líneas 21-30)
   let form = $state({
-    numero: data?.numero ?? '',
-    piso: data?.piso ?? '',
-    tipo: data?.tipo ?? (tipos[0]?.id ?? ''),
-    estado: data?.estado ?? 'libre'
+    numero: '',
+    piso: '',
+    tipo: '',
+    estado: ''
+  });
+
+  $effect(() => {
+    form.numero = data?.numero ?? '';
+    form.piso = data?.piso ?? '';
+    form.tipo = data?.tipo ?? (tipos[0]?.id ?? '');
+    form.estado = data?.estado ?? 'libre';
+    nuevoEstado = data?.estado ?? 'libre';
   });
 
   async function handleGuardar() {
@@ -35,18 +43,9 @@
       errorForm = 'Todos los campos marcados con * son obligatorios';
       return;
     }
-
     guardando = true;
-    errorForm = '';
-
     try {
-      const payload = {
-        numero: form.numero,
-        piso: Number(form.piso),
-        tipo: Number(form.tipo),
-        estado: form.estado
-      };
-
+      const payload = { ...form, piso: Number(form.piso), tipo: Number(form.tipo) };
       if (data?.id) {
         await habitacionesApi.update(data.id, payload);
         toast.send('Cambios guardados', 'success');
@@ -57,7 +56,7 @@
       onupdated();
       onclose();
     } catch (err) {
-      errorForm = 'Error al procesar la solicitud. Revisa los datos.';
+      errorForm = 'Error al procesar la solicitud.';
     } finally {
       guardando = false;
     }
@@ -77,14 +76,27 @@
       guardando = false;
     }
   }
+
+  function onKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') onclose();
+  }
 </script>
 
-<div class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-hotel-bg/90 backdrop-blur-sm" onclick={onclose}>
+<svelte:window onkeydown={onKeydown} />
+
+<div 
+  class="fixed inset-0 z-200 flex items-center justify-center p-4 bg-hotel-bg/90 backdrop-blur-sm"
+  onclick={onclose}
+  role="button"
+  tabindex="-1"
+  onkeydown={e => e.key === 'Enter' && onclose()}
+>
   <div 
     class="bg-hotel-surface border border-hotel-border w-full max-w-lg rounded-2xl shadow-hotel-lg overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200"
     onclick={e => e.stopPropagation()}
-  >
-    <!-- Header VIP -->
+    role="dialog"
+    aria-modal="true"
+>
     <header class="p-6 border-b border-hotel-border flex justify-between items-center bg-gradient-to-r from-hotel-surface to-hotel-bg">
       <div>
         <h2 class="text-2xl font-display font-bold text-hotel-text-primary italic">
@@ -92,7 +104,7 @@
         </h2>
         <p class="text-xs text-hotel-text-tertiary uppercase tracking-widest mt-1">Gestión de Activos Operativos</p>
       </div>
-      <button onclick={onclose} class="p-2 hover:bg-hotel-surface-hover rounded-full border border-hotel-border text-hotel-text-tertiary transition-colors">
+      <button onclick={onclose} aria-label="Cerrar modal" class="p-2 hover:bg-hotel-surface-hover rounded-full border border-hotel-border text-hotel-text-tertiary transition-colors">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
     </header>
@@ -106,7 +118,6 @@
       {/if}
 
       {#if vista === 'detalle'}
-        <!-- Grid de Info Elegante -->
         <div class="grid grid-cols-2 gap-4">
           <div class="p-4 bg-hotel-bg rounded-xl border border-hotel-border">
             <p class="text-[10px] font-bold text-hotel-text-tertiary uppercase tracking-tighter">Tipo de Habitación</p>
@@ -118,7 +129,6 @@
           </div>
         </div>
 
-        <!-- Selector de Estado Moderno -->
         <div>
           <label class="text-[10px] font-bold text-hotel-text-tertiary uppercase tracking-widest block mb-3">Actualizar Estado Operativo</label>
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -138,23 +148,21 @@
             {/each}
           </div>
         </div>
-
       {:else}
-        <!-- Formulario de Edición/Creación -->
         <div class="space-y-4">
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-1">
-              <label class="text-[10px] font-bold text-hotel-text-tertiary uppercase">Número *</label>
-              <input bind:value={form.numero} type="text" class="w-full bg-hotel-bg border border-hotel-border rounded-lg p-2.5 text-hotel-text-primary focus:border-hotel-gold outline-none transition-all" />
+              <label for="room-num" class="text-[10px] font-bold text-hotel-text-tertiary uppercase">Número *</label>
+              <input id="room-num" bind:value={form.numero} type="text" class="input-hotel" />
             </div>
             <div class="space-y-1">
-              <label class="text-[10px] font-bold text-hotel-text-tertiary uppercase">Piso *</label>
-              <input bind:value={form.piso} type="number" class="w-full bg-hotel-bg border border-hotel-border rounded-lg p-2.5 text-hotel-text-primary focus:border-hotel-gold outline-none transition-all" />
+              <label for="room-floor" class="text-[10px] font-bold text-hotel-text-tertiary uppercase">Piso *</label>
+              <input id="room-floor" bind:value={form.piso} type="number" class="input-hotel" />
             </div>
           </div>
           <div class="space-y-1">
-            <label class="text-[10px] font-bold text-hotel-text-tertiary uppercase">Categoría *</label>
-            <select bind:value={form.tipo} class="w-full bg-hotel-bg border border-hotel-border rounded-lg p-2.5 text-hotel-text-primary focus:border-hotel-gold outline-none appearance-none">
+            <label for="room-cat" class="text-[10px] font-bold text-hotel-text-tertiary uppercase">Categoría *</label>
+            <select id="room-cat" bind:value={form.tipo} class="input-hotel appearance-none">
               {#each tipos as t}
                 <option value={t.id}>{t.nombre}</option>
               {/each}
@@ -164,29 +172,21 @@
       {/if}
     </div>
 
-    <!-- Footer de Acciones -->
     <footer class="p-6 border-t border-hotel-border bg-hotel-bg/50 flex justify-between items-center">
       {#if vista === 'detalle'}
-        <button 
-          onclick={() => vista = 'form'}
-          class="text-xs font-bold text-hotel-gold hover:text-hotel-gold-light transition-colors uppercase tracking-widest"
-        >
+        <button onclick={() => vista = 'form'} class="text-xs font-bold text-hotel-gold hover:text-hotel-gold-light transition-colors uppercase tracking-widest">
           Editar Registro
         </button>
         <button 
           onclick={quickStatusUpdate}
           disabled={guardando || nuevoEstado === data?.estado}
-          class="bg-hotel-gold text-hotel-bg px-6 py-2 rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-hotel-gold-light disabled:opacity-50 transition-all shadow-hotel-gold"
+          class="btn-gold shadow-hotel-gold"
         >
           {guardando ? 'Procesando...' : 'Aplicar Estado'}
         </button>
       {:else}
         <button onclick={() => vista = 'detalle'} class="text-xs font-bold text-hotel-text-tertiary uppercase tracking-widest">Atrás</button>
-        <button 
-          onclick={handleGuardar}
-          disabled={guardando}
-          class="bg-hotel-gold text-hotel-bg px-8 py-2 rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-hotel-gold-light disabled:opacity-50 transition-all"
-        >
+        <button onclick={handleGuardar} disabled={guardando} class="btn-gold px-8">
           {guardando ? 'Guardando...' : (data?.id ? 'Guardar Cambios' : 'Crear Habitación')}
         </button>
       {/if}

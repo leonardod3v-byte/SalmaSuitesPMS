@@ -1,16 +1,21 @@
-from rest_framework.authentication import SessionAuthentication
+from rest_framework.authentication import TokenAuthentication, SessionAuthentication
+
+COOKIE_NAME = 'auth_token'
+
+
+class CookieTokenAuthentication(TokenAuthentication):
+    """
+    Lee el token desde la cookie HttpOnly en vez del header Authorization.
+    Permite que SvelteKit SSR envíe requests autenticados sin exponer el token en JS.
+    """
+    def authenticate(self, request):
+        token_key = request.COOKIES.get(COOKIE_NAME)
+        if not token_key:
+            return None
+
+        return self.authenticate_credentials(token_key)
 
 
 class CsrfExemptSessionAuthentication(SessionAuthentication):
-    """
-    Autenticación por sesión de Django sin verificación CSRF.
-
-    Permite que el frontend SvelteKit en localhost:5173 consuma
-    la API en localhost:8000 sin necesidad de incluir el token
-    CSRF en cada request, ya que ambos corren en orígenes distintos.
-
-    En producción se debe migrar a JWT completo con
-    rest_framework_simplejwt para mayor seguridad.
-    """
     def enforce_csrf(self, request):
         return

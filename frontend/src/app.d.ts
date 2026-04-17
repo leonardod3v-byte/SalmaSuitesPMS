@@ -1,24 +1,23 @@
 import { icons } from '$lib/components/Icons.svelte';
 
 declare global {
-  namespace App {
-    interface Locals {
-      user: {
-        id: string;
-        role: 'admin' | 'recepcionistas';
-        name: string;
-      } | null;
+    namespace App {
+        interface Locals {
+            user: {
+                id: string;
+                username: string;
+                email: string;
+                role: 'admin' | 'recepcion';
+                first_name?: string;
+                last_name?: string;
+            } | null;
+        }
+        interface PageData {
+            user?: App.Locals['user'];
+        }
     }
-    interface PageData {
-      user?: {
-        id: string;
-        role: 'admin' | 'recepcionistas';
-        name: string;
-      } | null;
-    }
-  }
 
-  type IconKey = keyof typeof icons;
+    type IconKey = keyof typeof icons;
 }
 
 export {};

@@ -1,6 +1,8 @@
 import { toast } from '$lib/stores/toast';
+import { auth } from '$lib/stores/auth';
+import { browser } from '$app/environment';
 
-const API_URL = 'http://localhost:8000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 interface FetchOptions extends RequestInit {
     headers?: Record<string, string>;
@@ -9,37 +11,39 @@ interface FetchOptions extends RequestInit {
 
 export async function apiFetch<T>(endpoint: string, options: FetchOptions = {}): Promise<T> {
     const { silent = false, ...fetchOptions } = options;
-    const token = localStorage.getItem('token');
 
     try {
         const res = await fetch(`${API_URL}${endpoint}`, {
             ...fetchOptions,
+            // credentials: 'include' hace que el browser envíe
+            // la cookie HttpOnly automáticamente en cada request
+            credentials: 'include',
             headers: {
                 'Content-Type': 'application/json',
-                ...(token ? { 'Authorization': `Token ${token}` } : {}),
-                ...fetchOptions.headers
-            }
+                ...fetchOptions.headers,
+            },
         });
 
-        // Manejo de sesión expirada
         if (res.status === 401 || res.status === 403) {
-            localStorage.clear();
-            toast.send("Sesión expirada", "info");
-            setTimeout(() => window.location.href = '/login', 1000);
-            throw new Error("Sesión expirada");
+            if (browser) {
+                toast.send('Sesión expirada', 'info');
+                // logout() llama al endpoint de Django para borrar la cookie
+                setTimeout(() => auth.logout(), 1000);
+            }
+            throw new Error('Sesión expirada');
         }
 
         if (!res.ok) {
             const data = await res.json().catch(() => ({}));
             const msg = data.detail || data.error || `Error ${res.status}`;
-            if (!silent) toast.send(msg, "error");
+            if (!silent) toast.send(msg, 'error');
             throw new Error(msg);
         }
 
         return res.json();
     } catch (error: any) {
         if (error.message === 'Failed to fetch') {
-            toast.send("Servidor fuera de línea", "error");
+            toast.send('Servidor fuera de línea', 'error');
         }
         throw error;
     }

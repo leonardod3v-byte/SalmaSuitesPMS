@@ -37,7 +37,7 @@ class ReservaListSerializer(serializers.ModelSerializer):
             'id', 'estado', 'fecha_entrada', 'fecha_salida', 'noches',
             'huesped_nombre', 'huesped_documento',
             'habitacion_numero', 'monto_total', 'monto_pagado',
-            'saldo_pendiente', 'metodo_pago', 'created_at'
+            'saldo_pendiente', 'metodo_pago', 'created_at', 'tipo_cliente',
         ]
 
 

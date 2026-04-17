@@ -40,7 +40,7 @@ def habitaciones_list(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['GET', 'PUT', 'DELETE'])
+@api_view(['GET', 'PUT', 'DELETE', 'PATCH'])
 @permission_classes([IsAuthenticated])
 @csrf_exempt
 def habitacion_detail(request, pk):
@@ -63,7 +63,7 @@ def habitacion_detail(request, pk):
             'historial': historial_serializer.data
         })
 
-    if request.method == 'PUT':
+    if request.method in ['PUT', 'PATCH']:
         estado_anterior = habitacion.estado
         serializer = HabitacionSerializer(habitacion, data=request.data, partial=True)
         if serializer.is_valid():

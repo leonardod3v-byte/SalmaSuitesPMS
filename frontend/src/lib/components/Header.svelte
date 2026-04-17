@@ -8,12 +8,6 @@
   let activeDropdown = $state<string | null>(null);
   let currentLang = $state('ES');
 
-  const languages = [
-    { code: 'ES', flag: '🇪🇸', name: 'Español' },
-    { code: 'EN', flag: '🇬🇧', name: 'English' },
-    { code: 'PT', flag: '🇧🇷', name: 'Português' },
-  ];
-
   const notifications = [
     { id: 1, text: 'Nueva reserva: Suite 301', time: '5 min', unread: true },
     { id: 2, text: 'Check-out pendiente: H-205', time: '15 min', unread: true },
@@ -46,7 +40,6 @@
   );
 
   let unreadCount = $derived(notifications.filter(n => n.unread).length);
-  let currentFlag = $derived(languages.find(l => l.code === currentLang)?.flag ?? '🌐');
   let userName = $derived($auth.user?.username ?? 'Usuario');
   let userInitial = $derived(userName.charAt(0).toUpperCase());
   let userRole = $derived($auth.user?.role === 'admin' ? 'Administrador' : 'Recepcionista');
@@ -103,27 +96,6 @@
               </div>
             {/each}
           </div>
-        </div>
-      {/if}
-    </div>
-
-    <div class="relative hidden sm:block">
-      <button onclick={() => toggleDropdown('lang')} 
-              class="flex items-center gap-2 px-3 py-2 rounded-xl text-hotel-text-secondary hover:bg-hotel-surface hover:text-hotel-text-primary transition-all">
-        <span class="text-lg">{currentFlag}</span>
-        <span class="text-sm font-medium uppercase">{currentLang}</span>
-      </button>
-
-      {#if activeDropdown === 'lang'}
-        <div transition:fly={{ y: 10, duration: 200 }} 
-             class="absolute right-0 mt-2 w-40 bg-hotel-surface border border-hotel-border rounded-xl shadow-hotel-lg overflow-hidden">
-          {#each languages as lang}
-            <button onclick={() => selectLang(lang.code)} 
-                    class="w-full px-4 py-3 flex items-center gap-3 hover:bg-hotel-surface-hover transition-colors {currentLang === lang.code ? 'bg-hotel-gold/10' : ''}">
-              <span>{lang.flag}</span>
-              <span class="text-sm text-hotel-text-primary">{lang.name}</span>
-            </button>
-          {/each}
         </div>
       {/if}
     </div>

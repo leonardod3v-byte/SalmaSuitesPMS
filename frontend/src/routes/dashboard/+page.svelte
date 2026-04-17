@@ -1,10 +1,8 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { dashboardApi } from '$lib/services/dashboard';
+  import type { PageData } from './$types';
   import WelcomeBanner from '$lib/components/WelcomeBanner.svelte';
   import KPICard from '$lib/components/KPICard.svelte';
   import Loading from '$lib/components/Loading.svelte';
-
 
   interface Stats {
     ocupacion: { porcentaje: number; ocupadas: number; total: number; trend: { valor: string; subio: boolean } };
@@ -14,60 +12,35 @@
   }
   interface Habitacion { num: string; estado: 'libre' | 'ocupada' | 'mantenimiento'; tipo: string; piso: number; }
   interface Actividad { descripcion: string; created_at: string; }
-  interface ResOcupacion { valores: number[]; dias: string[]; }
 
+  let { data }: { data: PageData } = $props();
 
-  let error = $state<string>('');
-  let stats = $state<Stats | null>(null);
-  let ocupacionSemanal = $state<number[]>([]);
-  let diasSemana = $state<string[]>([]);
-  let actividades = $state<Actividad[]>([]);
-  let habitaciones = $state<Habitacion[]>([]);
+  // Datos pre-cargados desde el servidor — sin onMount, sin "Loading..."
+  let stats = $derived(data.stats as Stats | null);
+  let habitaciones = $derived((data.habitaciones ?? []) as Habitacion[]);
+  let actividades = $derived((data.actividades ?? []) as Actividad[]);
+  let ocupacionSemanal = $derived((data.ocupacionSemanal as any)?.valores ?? [] as number[]);
+  let diasSemana = $derived((data.ocupacionSemanal as any)?.dias ?? [] as string[]);
+
   let filtroActivo = $state<string>('todas');
 
-
-  function cargarDashboard() {
-    error = '';
-    
-
-    dashboardApi.getStats()
-      .then(res => stats = res as Stats)
-      .catch(() => error = "Error en KPIs");
-
-    dashboardApi.getOcupacionSemanal()
-      .then(res => {
-        const data = res as ResOcupacion;
-        ocupacionSemanal = data.valores || [];
-        diasSemana = data.dias || [];
-      });
-
-    dashboardApi.getHabitacionesGrid()
-      .then(res => habitaciones = res as Habitacion[]);
-
-    dashboardApi.getActividades()
-      .then(res => actividades = res as Actividad[]);
-  }
-
-  onMount(() => {
-    cargarDashboard();
-  });
-
-
   let habitacionesFiltradas = $derived(
-    filtroActivo === 'todas' ? habitaciones : habitaciones.filter(h => h.estado === filtroActivo)
+    filtroActivo === 'todas'
+      ? habitaciones
+      : habitaciones.filter(h => h.estado === filtroActivo)
   );
 
   let totalPorEstado = $derived({
-    libre: habitaciones.filter(h => h.estado === 'libre').length,
-    ocupada: habitaciones.filter(h => h.estado === 'ocupada').length,
+    libre:         habitaciones.filter(h => h.estado === 'libre').length,
+    ocupada:       habitaciones.filter(h => h.estado === 'ocupada').length,
     mantenimiento: habitaciones.filter(h => h.estado === 'mantenimiento').length,
   });
 
   const getEstadoClass = (estado: Habitacion['estado']) => {
     const map: Record<string, string> = {
-      libre: 'bg-hotel-success/10 border-hotel-success/30 text-hotel-success-light',
-      ocupada: 'bg-hotel-gold/10 border-hotel-gold/30 text-hotel-gold-light',
-      mantenimiento: 'bg-hotel-error/10 border-hotel-error/30 text-hotel-error-light'
+      libre:         'bg-hotel-success/10 border-hotel-success/30 text-hotel-success-light',
+      ocupada:       'bg-hotel-gold/10 border-hotel-gold/30 text-hotel-gold-light',
+      mantenimiento: 'bg-hotel-error/10 border-hotel-error/30 text-hotel-error-light',
     };
     return map[estado] || 'bg-hotel-surface border-hotel-border text-hotel-text-tertiary';
   };
@@ -77,13 +50,13 @@
   <title>Panel de Control | SalmaSuitesPMS</title>
 </svelte:head>
 
-{#if !stats && !error}
-  <Loading type="dashboard" />
-{:else if error}
+{#if !stats}
   <div class="flex items-center justify-center h-[60vh]">
     <div class="text-center p-8 bg-hotel-error/5 border border-hotel-error/20 rounded-2xl">
-      <p class="text-hotel-error-light font-bold uppercase tracking-widest text-xs mb-4">{error}</p>
-      <button onclick={cargarDashboard} class="btn-gold-outline py-2 px-6 text-xs">Reintentar Sincronización</button>
+      <p class="text-hotel-error-light font-bold uppercase tracking-widest text-xs mb-4">
+        Error al cargar el panel
+      </p>
+      <a href="/dashboard" class="btn-gold-outline py-2 px-6 text-xs">Reintentar</a>
     </div>
   </div>
 {:else}
@@ -91,37 +64,37 @@
     <WelcomeBanner />
 
     <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-      <KPICard 
-        title="Ocupación Real" 
-        value="{stats?.ocupacion?.porcentaje ?? 0}%" 
+      <KPICard
+        title="Ocupación Real"
+        value="{stats?.ocupacion?.porcentaje ?? 0}%"
         subtitle="{stats?.ocupacion?.ocupadas ?? 0} de {stats?.ocupacion?.total ?? 0} unidades"
         trend={stats?.ocupacion?.trend?.valor}
         trendUp={stats?.ocupacion?.trend?.subio}
-        icon="hotel" 
-        color="gold" 
+        icon="hotel"
+        color="gold"
       />
-      <KPICard 
-        title="Check-In Hoy" 
-        value={stats?.reservas_hoy?.total ?? 0} 
+      <KPICard
+        title="Check-In Hoy"
+        value={stats?.reservas_hoy?.total ?? 0}
         subtitle="{stats?.reservas_hoy?.check_ins_pendientes ?? 0} ingresos pendientes"
-        icon="calendar" 
-        color="success" 
+        icon="calendar"
+        color="success"
       />
-      <KPICard 
-        title="Ingresos" 
-        value="${stats?.ingresos_dia?.monto?.toLocaleString(undefined, { minimumFractionDigits: 2 }) ?? '0.00'}" 
+      <KPICard
+        title="Ingresos"
+        value="${stats?.ingresos_dia?.monto?.toLocaleString(undefined, { minimumFractionDigits: 2 }) ?? '0.00'}"
         subtitle="Flujo de caja del día"
         trend={stats?.ingresos_dia?.trend?.valor}
         trendUp={stats?.ingresos_dia?.trend?.subio}
-        icon="money" 
-        color="gold" 
+        icon="money"
+        color="gold"
       />
-      <KPICard 
-        title="Clientes VIP" 
-        value={stats?.vip_hoy?.total ?? 0} 
+      <KPICard
+        title="Clientes VIP"
+        value={stats?.vip_hoy?.total ?? 0}
         subtitle="Servicios preferenciales"
-        icon="crown" 
-        color="vip" 
+        icon="crown"
+        color="vip"
       />
     </div>
 
@@ -135,8 +108,8 @@
                 {val}%
               </div>
               <div class="w-full relative h-full flex flex-col justify-end bg-hotel-bg/30 rounded-t-md overflow-hidden">
-                <div 
-                  class="w-full bg-linear-to-t from-hotel-gold-dark via-hotel-gold to-hotel-gold-light transition-all duration-1000 ease-out" 
+                <div
+                  class="w-full bg-linear-to-t from-hotel-gold-dark via-hotel-gold to-hotel-gold-light transition-all duration-1000 ease-out"
                   style="height: {val}%"
                 ></div>
               </div>
@@ -180,7 +153,10 @@
         <h3 class="font-display text-xl text-hotel-text-primary italic">Mapa de Habitaciones</h3>
         <div class="flex p-1 bg-hotel-bg rounded-xl border border-hotel-border">
           {#each ['todas', 'libre', 'ocupada', 'mantenimiento'] as f}
-            <button onclick={() => filtroActivo = f} class="px-4 py-1.5 text-[10px] uppercase font-bold rounded-lg transition-all {filtroActivo === f ? 'bg-hotel-gold text-hotel-bg shadow-hotel-sm' : 'text-hotel-text-tertiary hover:text-hotel-text-secondary'}">
+            <button
+              onclick={() => filtroActivo = f}
+              class="px-4 py-1.5 text-[10px] uppercase font-bold rounded-lg transition-all {filtroActivo === f ? 'bg-hotel-gold text-hotel-bg shadow-hotel-sm' : 'text-hotel-text-tertiary hover:text-hotel-text-secondary'}"
+            >
               {f}
             </button>
           {/each}
@@ -193,6 +169,22 @@
             {hab.num}
           </div>
         {/each}
+      </div>
+
+
+      <div class="mt-3 pt-6 border-t border-hotel-border/50 flex flex-wrap gap-2">
+        <div class="flex flex-wrap gap-3">
+          {#each [
+            { label: 'Libre', class: 'bg-hotel-success/10 border-hotel-success/30 text-hotel-success-light', dot: 'bg-hotel-success' },
+            { label: 'Ocupada', class: 'bg-hotel-gold/10 border-hotel-gold/30 text-hotel-gold-light', dot: 'bg-hotel-gold' },
+            { label: 'Mantenimiento/Limpieza', class: 'bg-hotel-error/10 border-hotel-error/30 text-hotel-error-light', dot: 'bg-hotel-error' },
+          ] as item}
+            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[10px] font-bold transition-opacity hover:opacity-80 {item.class}">
+              <div class="w-2 h-2 rounded-full {item.dot} animate-pulse-slow"></div>
+                {item.label}
+            </div>
+          {/each}
+        </div>
       </div>
     </section>
   </div>
