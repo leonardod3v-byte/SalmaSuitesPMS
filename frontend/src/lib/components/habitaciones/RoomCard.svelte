@@ -23,11 +23,12 @@
 >
   <!-- Contenedor de Imagen -->
   <div class="relative h-32 w-full overflow-hidden">
-    <img 
-      src={roomImage} 
-      alt={tipoLabel}
-      class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-    />
+  <img 
+    src={roomImage} 
+    alt="Habitación {tipoLabel}" 
+    loading="lazy" 
+    class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+  />
     <div class="absolute inset-0 bg-linear-to-t from-hotel-black-deep/80 to-transparent"></div>
     
     <!-- Badge de Estado Flotante -->

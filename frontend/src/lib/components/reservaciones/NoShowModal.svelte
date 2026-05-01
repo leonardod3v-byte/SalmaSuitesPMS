@@ -1,6 +1,7 @@
 <script lang="ts">
   import { reservacionesApi, type ReservaListItem } from '$lib/services/reservaciones';
   import { toast } from '$lib/stores/toast';
+  import ModalShell from '$lib/components/ModalShell.svelte';
 
   let { reserva, onclose, onregistrado }: {
     reserva:       ReservaListItem;
@@ -35,117 +36,84 @@
       guardando = false;
     }
   }
-
-  function onKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') onclose();
-  }
 </script>
 
-<svelte:window onkeydown={onKeydown} />
-
-<div
-  class="fixed inset-0 z-110 flex items-center justify-center p-4 bg-hotel-bg/90 backdrop-blur-md"
-  onclick={(e) => e.target === e.currentTarget && onclose()}
-  role="dialog" aria-modal="true"
+<ModalShell
+  title="Acta de No-Show"
+  subtitle="Procedimiento de Anulación Irreversible"
+  maxWidth="max-w-lg"
+  {onclose}
 >
-  <div class="w-full max-w-lg bg-hotel-surface border border-hotel-error/20 rounded-[2.5rem] shadow-2xl shadow-hotel-error/10 overflow-hidden animate-in fade-in zoom-in-95 duration-300">
-    
-    <div class="p-8 pb-6 flex items-center gap-5 border-b border-hotel-border/50 bg-hotel-error/0.02">
-      <div class="w-14 h-14 rounded-2xl bg-hotel-error/10 flex items-center justify-center shrink-0 shadow-inner">
-        <svg class="w-7 h-7 text-hotel-error-light" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-        </svg>
-      </div>
-      <div class="flex-1">
-        <h2 class="font-display text-2xl italic font-black text-hotel-text-primary tracking-tight">Acta de No-Show</h2>
-        <p class="text-[9px] font-black uppercase tracking-[0.2em] text-hotel-error-light mt-1">Procedimiento de Anulación Irreversible</p>
-      </div>
-      <button onclick={onclose} class="w-10 h-10 rounded-full hover:bg-hotel-surface border border-transparent hover:border-hotel-border flex items-center justify-center text-hotel-text-tertiary transition-all">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
-      </button>
-    </div>
+  <div class="space-y-8">
+    <div class="relative bg-hotel-bg p-6 rounded-3xl border border-hotel-border/60 shadow-inner group">
+      <div class="absolute top-0 right-8 w-12 h-4 bg-hotel-surface border border-hotel-border border-t-0 rounded-b-xl opacity-20 group-hover:opacity-40 transition-opacity"></div>
+      
+      <header class="mb-4 flex justify-between items-start">
+        <span class="text-[8px] font-black uppercase tracking-[0.4em] text-hotel-text-tertiary">Documento Digital</span>
+        <span class="text-[10px] font-mono text-hotel-gold">ID-{reserva.id}</span>
+      </header>
 
-    <div class="p-8 space-y-8">
-      <div class="relative bg-hotel-bg p-6 rounded-3xl border border-hotel-border/60 shadow-inner group">
-        <div class="absolute top-0 right-8 w-12 h-4 bg-hotel-surface border border-hotel-border border-t-0 rounded-b-xl opacity-20 group-hover:opacity-40 transition-opacity"></div>
+      <div class="space-y-3 font-mono text-[10px] leading-relaxed">
+        <div class="flex justify-between border-b border-hotel-border/30 pb-1">
+          <span class="text-hotel-text-tertiary uppercase">Hotel</span>
+          <span class="text-hotel-text-primary font-bold">SALMA SUITE VIP</span>
+        </div>
+        <div class="flex justify-between border-b border-hotel-border/30 pb-1">
+          <span class="text-hotel-text-tertiary uppercase">Fecha Emisión</span>
+          <span class="text-hotel-text-primary uppercase">{hoy}</span>
+        </div>
+        <div class="flex justify-between border-b border-hotel-border/30 pb-1">
+          <span class="text-hotel-text-tertiary uppercase">Huésped Titular</span>
+          <span class="text-hotel-text-primary font-bold">{reserva.huesped_nombre}</span>
+        </div>
+        <div class="flex justify-between border-b border-hotel-border/30 pb-1">
+          <span class="text-hotel-text-tertiary uppercase">Unidad Asignada</span>
+          <span class="text-hotel-text-primary">HABITACIÓN #{reserva.habitacion_numero}</span>
+        </div>
         
-        <header class="mb-4 flex justify-between items-start">
-          <span class="text-[8px] font-black uppercase tracking-[0.4em] text-hotel-text-tertiary">Documento Digital</span>
-          <span class="text-[10px] font-mono text-hotel-gold">ID-{reserva.id}</span>
-        </header>
-
-        <div class="space-y-3 font-mono text-[10px] leading-relaxed">
-          <div class="flex justify-between border-b border-hotel-border/30 pb-1">
-            <span class="text-hotel-text-tertiary uppercase">Hotel</span>
-            <span class="text-hotel-text-primary font-bold">SALMA SUITE VIP</span>
-          </div>
-          <div class="flex justify-between border-b border-hotel-border/30 pb-1">
-            <span class="text-hotel-text-tertiary uppercase">Fecha Emisión</span>
-            <span class="text-hotel-text-primary uppercase">{hoy}</span>
-          </div>
-          <div class="flex justify-between border-b border-hotel-border/30 pb-1">
-            <span class="text-hotel-text-tertiary uppercase">Huésped Titular</span>
-            <span class="text-hotel-text-primary font-bold">{reserva.huesped_nombre}</span>
-          </div>
-          <div class="flex justify-between border-b border-hotel-border/30 pb-1">
-            <span class="text-hotel-text-tertiary uppercase">Unidad Asignada</span>
-            <span class="text-hotel-text-primary">HABITACIÓN #{reserva.habitacion_numero}</span>
-          </div>
-          
-          <div class="mt-4 pt-2">
-            <p class="text-hotel-text-tertiary uppercase mb-2">Declaratoria de Motivo:</p>
-            <p class="text-hotel-text-primary italic whitespace-pre-wrap min-h-40px border-l-2 border-hotel-gold/30 pl-3">
-              {motivo || 'Esperando entrada de datos...'}
-            </p>
-          </div>
+        <div class="mt-4 pt-2">
+          <p class="text-hotel-text-tertiary uppercase mb-2">Declaratoria de Motivo:</p>
+          <p class="text-hotel-text-primary italic whitespace-pre-wrap min-h-40px border-l-2 border-hotel-gold/30 pl-3">
+            {motivo || 'Esperando entrada de datos...'}
+          </p>
         </div>
       </div>
+    </div>
 
-      <div class="space-y-3">
-        <label for="motivo" class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-text-secondary">Justificación del Incumplimiento</label>
-        <textarea
-          id="motivo"
-          bind:value={motivo}
-          rows="3"
-          placeholder="Ej: El huésped no respondió a las llamadas de confirmación tras 4 horas de retraso..."
-          class="w-full rounded-2xl px-5 py-4 text-xs bg-hotel-bg text-hotel-text-primary border-2 transition-all outline-none resize-none placeholder:text-hotel-text-tertiary/50
-                 {error ? 'border-hotel-error focus:ring-4 focus:ring-hotel-error/10' 
-                        : 'border-hotel-border focus:border-hotel-gold/50 focus:ring-4 focus:ring-hotel-gold/5'}"
-        ></textarea>
-        {#if error}
-          <p class="text-[9px] font-bold text-hotel-error-light uppercase tracking-widest animate-pulse">{error}</p>
+    <div class="space-y-3">
+      <label for="motivo" class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-text-secondary">Justificación del Incumplimiento</label>
+      <textarea
+        id="motivo"
+        bind:value={motivo}
+        rows="3"
+        placeholder="Ej: El huésped no respondió a las llamadas de confirmación tras 4 horas de retraso..."
+        class="w-full rounded-2xl px-5 py-4 text-xs bg-hotel-bg text-hotel-text-primary border-2 transition-all outline-none resize-none placeholder:text-hotel-text-tertiary/50
+               {error ? 'border-hotel-error focus:ring-4 focus:ring-hotel-error/10' 
+                      : 'border-hotel-border focus:border-hotel-gold/50 focus:ring-4 focus:ring-hotel-gold/5'}"
+      ></textarea>
+      {#if error}
+        <p class="text-[9px] font-bold text-hotel-error-light uppercase tracking-widest animate-pulse">{error}</p>
+      {/if}
+    </div>
+
+    <div class="flex gap-4">
+      <button onclick={onclose} class="flex-1 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-hotel-text-tertiary hover:text-hotel-text-primary transition-all">
+        Abortar
+      </button>
+      <button
+        onclick={registrar}
+        disabled={guardando}
+        class="flex-2 btn-error shadow-hotel-error/20"
+      >
+        {#if guardando}
+          <svg class="w-4 h-4 animate-spin mr-2 inline" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="31.4" stroke-dashoffset="10"/>
+          </svg>
+          Archivando...
+        {:else}
+          Registrar Incumplimiento
         {/if}
-      </div>
-
-      <div class="flex gap-4">
-        <button onclick={onclose} class="flex-1 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-hotel-text-tertiary hover:text-hotel-text-primary transition-all">
-          Abortar
-        </button>
-        <button
-          onclick={registrar}
-          disabled={guardando}
-          class="flex-2 btn-error group shadow-hotel-error/20"
-        >
-          {#if guardando}
-            <svg class="w-4 h-4 animate-spin mr-2" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="31.4" stroke-dashoffset="10"/>
-            </svg>
-            Archivando...
-          {:else}
-            Registrar Incumplimiento
-          {/if}
-        </button>
-      </div>
+      </button>
     </div>
   </div>
-</div>
-
-<style>
-  @reference "../../../app.css";
-
-  .btn-error {
-    @apply inline-flex items-center justify-center px-8 py-4 rounded-2xl
-           bg-hotel-error text-white text-[11px] font-black uppercase tracking-[0.2em]
-           hover:bg-hotel-error-light transition-all duration-300 disabled:opacity-50;
-  }
-</style>
+</ModalShell>

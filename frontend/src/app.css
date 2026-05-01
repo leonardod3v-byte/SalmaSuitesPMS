@@ -144,4 +144,74 @@
     color: #4CAF82;
     border: 1px solid rgba(45, 106, 79, 0.4);
   }
+
+  .btn-error {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem 2rem;
+    border-radius: 1rem;
+    background-color: var(--color-hotel-error);
+    color: #ffffff;
+    font-size: 0.6875rem; /* 11px */
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    transition: all 0.3s;
+    border: none;
+    cursor: pointer;
+  }
+
+  .btn-error:hover:not(:disabled) {
+    background-color: var(--color-hotel-error-light);
+  }
+
+  .btn-error:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-action {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 1rem;
+    background-color: var(--color-hotel-bg);
+    border: 1px solid var(--color-hotel-border);
+    border-radius: 1rem;
+    color: var(--color-hotel-text-primary);
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+
+  .btn-action:hover {
+    border-color: var(--color-hotel-gold);
+    background-color: rgba(179, 142, 93, 0.05);
+  }
+
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-hotel-border) transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--color-hotel-border);
+    border-radius: 3px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--color-hotel-gold);
+  }
 }

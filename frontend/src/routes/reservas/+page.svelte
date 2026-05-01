@@ -8,13 +8,14 @@
   import NoShowModal     from '$lib/components/reservaciones/NoShowModal.svelte';
   import ConsumoSelector from '$lib/components/reservaciones/ConsumoSelector.svelte';
   import PagoRegistro from '$lib/components/reservaciones/PagoRegistro.svelte';
+  import ModalShell from '$lib/components/ModalShell.svelte';
+  import PageHeader from '$lib/components/PageHeader.svelte';
   import { reservacionesApi } from '$lib/services/reservaciones';
 
   let { data }: { data: PageData } = $props();
 
   let reservas     = $derived((data.reservas     ?? []) as ReservaListItem[]);
   let habitaciones = $derived((data.habitaciones ?? []) as { numero: string; tipo_nombre: string; piso: number }[]);
-  
   let semanaInicio = $derived(new Date(data.semanaInicio + 'T00:00:00'));
 
 
@@ -45,7 +46,7 @@
 
     if (reserva) {
       reservaSeleccionada = reserva;
-      modoGestion = 'menu'; // Abrimos el menú de opciones primero
+      modoGestion = 'menu';
     } else {
       modalCheckin = true;
     }
@@ -54,10 +55,10 @@
     function cerrarGestion() {
     reservaSeleccionada = null;
     modoGestion = null;
-    invalidateAll(); // Refresca los datos (saldos, estados, etc.)
+    invalidateAll();
   }
 
-  // Estadísticas en tiempo real del Dashboard
+
   const statsHoy = $derived(() => {
     const hoy = new Date().toISOString().split('T')[0];
     return {
@@ -66,8 +67,6 @@
       ocupadas:  reservas.filter(r => r.estado === 'confirmada' || r.estado === 'pagada').length,
     };
   });
-
-
 </script>
 
 <svelte:head>
@@ -76,37 +75,18 @@
 
 <div class="max-w-1600px mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
 
-  <header class="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-hotel-border/50 pb-8">
-    <div class="space-y-1">
-      <h1 class="text-4xl font-display font-black italic text-hotel-text-primary tracking-tight">
-        Reservaciones
-      </h1>
-      <p class="text-xs font-medium text-hotel-text-tertiary flex items-center gap-2 uppercase tracking-0.1em">
-        <span class="w-2 h-2 rounded-full bg-hotel-gold animate-pulse"></span>
-        Rack de Control
-      </p>
-    </div>
-
-    <div class="flex items-center gap-3">
-      <button class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-hotel-border
-               text-xs font-bold text-hotel-text-secondary hover:border-hotel-gold/40
-               hover:text-hotel-gold transition-all" onclick={() => {}}>
-        <svg class="w-4 h-4 text-hotel-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-        </svg>
-        <span class="font-black uppercase text-[10px] tracking-widest text-hotel-text-secondary">Exportar registro</span>
-      </button>
-
-      <button class="btn-gold group px-6 py-3" onclick={() => modalCheckin = true}>
+  <PageHeader title="Reservaciones" subtitle="Gestión de Estancias y Check-ins">
+    {#snippet actions()}
+      <button onclick={() => modalCheckin = true} class="btn-gold">
         <svg class="w-4 h-4 transition-transform group-hover:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v14M5 12h14"/>
         </svg>
-        <span class="font-black uppercase text-[10px] tracking-widest text-hotel-bg">Nueva Reserva</span>
+        Nuevo Check-In
       </button>
-    </div>
-  </header>
+    {/snippet}
+  </PageHeader>
 
-  <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+  <section class="grid grid-cols-1 lg:grid-cols-4 gap-4 items-center bg-hotel-surface/40 p-2 rounded-2xl border border-hotel-border shadow-hotel-sm backdrop-blur-md">
     {#each [
       { label: 'Check-ins Hoy',  value: statsHoy().checkins,  icon: 'M11 16l-4-4m0 0l4-4m-4 4h14', color: 'text-hotel-success-light' },
       { label: 'Check-outs Hoy', value: statsHoy().checkouts, icon: 'M13 8l4 4m0 0l-4 4m4-4H3',   color: 'text-hotel-error-light'   },
@@ -152,97 +132,49 @@
   </section>
 </div>
 
-{#if modalCheckin}
-  <div class="fixed inset-0 z-100 flex items-center justify-center p-4 bg-hotel-bg/90 backdrop-blur-md animate-in fade-in duration-300">
-    <div class="w-full max-w-2xl max-h-[90vh] bg-hotel-surface border border-hotel-border rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
-      <div class="p-8 border-b border-hotel-border flex justify-between items-center bg-hotel-bg/20">
-        <div>
-          <h2 class="font-display text-3xl italic text-hotel-text-primary tracking-tight">Check-In</h2>
-          <span class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-gold">Registro de Nueva Reserva</span>
+{#if reservaSeleccionada && modoGestion && modoGestion !== 'noshow'}
+  <ModalShell
+    title="{reservaSeleccionada.huesped_nombre.split(' ')[0]} — Hab. {reservaSeleccionada.habitacion_numero}"
+    subtitle={modoGestion === 'menu' ? 'Gestión de Estancia' : 'Procesando ' + modoGestion}
+    maxWidth="max-w-lg"
+    onclose={cerrarGestion}
+  >
+    {#if modoGestion === 'menu'}
+      <div class="grid grid-cols-1 gap-3">
+        <div class="flex justify-between items-center p-4 bg-hotel-bg rounded-2xl border border-hotel-border mb-2">
+          <span class="text-xs font-bold text-hotel-text-tertiary uppercase">Saldo Pendiente:</span>
+          <span class="text-xl font-display font-black text-hotel-gold">${reservaSeleccionada.saldo_pendiente}</span>
         </div>
-        <button onclick={() => modalCheckin = false} class="w-10 h-10 rounded-full border border-hotel-border flex items-center justify-center hover:bg-hotel-error/10 hover:text-hotel-error-light transition-all">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        <button onclick={() => modoGestion = 'pago'} class="btn-action">
+          <span class="text-lg">💳</span> Registrar Pago / Abono
+        </button>
+        <button onclick={() => modoGestion = 'consumo'} class="btn-action">
+          <span class="text-lg">🛒</span> Añadir Consumo (Minibar/Rest)
+        </button>
+        <button onclick={() => modoGestion = 'noshow'} class="btn-action text-hotel-error-light opacity-50 hover:opacity-100">
+          <span class="text-lg">🚫</span> Marcar como No-Show
         </button>
       </div>
-      <div class="p-8 overflow-y-auto custom-scrollbar">
-        <CheckInForm onguardado={() => { modalCheckin = false; invalidateAll(); }} oncancel={() => modalCheckin = false} />
-      </div>
-    </div>
-  </div>
+    {:else if modoGestion === 'pago'}
+      <PagoRegistro
+        reservaId={reservaSeleccionada.id}
+        totalPendiente={parseFloat(reservaSeleccionada.saldo_pendiente)}
+        onpago={cerrarGestion}
+      />
+    {:else if modoGestion === 'consumo'}
+      <ConsumoSelector reservaId={reservaSeleccionada.id} onaguardado={cerrarGestion} />
+    {/if}
+  </ModalShell>
 {/if}
 
-{#if reservaSeleccionada && modoGestion}
-  <div class="fixed inset-0 z-100 flex items-center justify-center p-4 bg-hotel-bg/95 backdrop-blur-md animate-in fade-in duration-300">
-    <div class="w-full max-w-lg bg-hotel-surface border border-hotel-border rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95">
-      
-      <div class="p-6 border-b border-hotel-border flex justify-between items-center bg-hotel-bg/30">
-        <div>
-          <p class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-gold">
-            {modoGestion === 'menu' ? 'Gestión de Estancia' : 'Procesando ' + modoGestion}
-          </p>
-          <h2 class="font-display text-2xl italic text-hotel-text-primary uppercase tracking-tighter">
-            {reservaSeleccionada.huesped_nombre.split(' ')[0]} - Hab. {reservaSeleccionada.habitacion_numero}
-          </h2>
-        </div>
-        <button onclick={cerrarGestion} class="w-10 h-10 rounded-full border border-hotel-border flex items-center justify-center hover:bg-hotel-error/10 text-hotel-text-tertiary">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-        </button>
-      </div>
-
-      <div class="p-6">
-        {#if modoGestion === 'menu'}
-          <div class="grid grid-cols-1 gap-3">
-            <div class="flex justify-between items-center p-4 bg-hotel-bg rounded-2xl border border-hotel-border mb-2">
-              <span class="text-xs font-bold text-hotel-text-tertiary uppercase">Saldo Pendiente:</span>
-              <span class="text-xl font-display font-black text-hotel-gold">${reservaSeleccionada.saldo_pendiente}</span>
-            </div>
-
-            <button onclick={() => modoGestion = 'pago'} class="btn-action">
-              <span class="text-lg"></span> Registrar Pago / Abono
-            </button>
-            <button onclick={() => modoGestion = 'consumo'} class="btn-action">
-              <span class="text-lg"></span> Añadir Consumo (Minibar/Rest)
-            </button>
-            <button onclick={() => modoGestion = 'noshow'} class="btn-action text-hotel-error-light opacity-50 hover:opacity-100">
-              <span class="text-lg"></span> Marcar como No-Show
-            </button>
-          </div>
-
-        {:else if modoGestion === 'pago'}
-          <PagoRegistro 
-            reservaId={reservaSeleccionada.id} 
-            totalPendiente={parseFloat(reservaSeleccionada.saldo_pendiente)} 
-            onpago={cerrarGestion} 
-          />
-        
-        {:else if modoGestion === 'consumo'}
-          <ConsumoSelector 
-            reservaId={reservaSeleccionada.id} 
-            onaguardado={cerrarGestion} 
-          />
-
-        {:else if modoGestion === 'noshow'}
-           <NoShowModal 
-            reserva={reservaSeleccionada} 
-            onconfirm={() => { modoGestion = null; reservaSeleccionada = null; invalidateAll(); }}
-            oncancel={() => modoGestion = 'menu'}
-           />
-        {/if}
-      </div>
-    </div>
-  </div>
+{#if reservaSeleccionada && modoGestion === 'noshow'}
+  <NoShowModal
+    reserva={reservaSeleccionada}
+    onclose={() => modoGestion = 'menu'} 
+    onregistrado={() => { 
+      modoGestion = null; 
+      reservaSeleccionada = null; 
+      invalidateAll(); 
+    }}
+  />
 {/if}
-
-<style>
-  @reference "../../app.css";
-  
-  .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: #d4af3720; border-radius: 10px; }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #d4af3740; }
-  .btn-action {
-    @apply flex items-center gap-4 w-full p-4 bg-hotel-surface border border-hotel-border rounded-2xl 
-           text-xs font-black uppercase tracking-widest text-hotel-text-primary 
-           hover:border-hotel-gold hover:bg-hotel-gold/5 transition-all text-left;
-  }
-</style>
