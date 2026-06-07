@@ -1,36 +1,22 @@
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 import { goto } from '$app/navigation';
-
-export interface User {
-    id: number;
-    username: string;
-    email: string;
-    role: 'admin' | 'recepcion';
-    first_name?: string;
-    last_name?: string;
-}
-
-interface AuthState {
-    user: User | null;
-    isAuthenticated: boolean;
-    loading: boolean;
-}
+import type { User, AuthState } from '$lib/types/auth';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 function createAuthStore() {
-    // Estado inicial vacío — la fuente de verdad es el servidor (locals.user)
+    // Estado inicial vacío — la fuente de verdad es el servidor
     const { subscribe, set, update } = writable<AuthState>({
         user: null,
         isAuthenticated: false,
-        loading: false,
+        loading: true,
     });
 
     return {
         subscribe,
-
-        // Llamado desde +layout.svelte para hidratar el store con datos SSR
+        
+        // Permite forzar el estado (útil para la sincronización desde las Svelte Pages)
         init(user: User | null) {
             set({
                 user,
@@ -46,9 +32,6 @@ function createAuthStore() {
                 const res = await fetch(`${API_URL}/auth/login/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    // credentials: 'include' es CRÍTICO para que el browser
-                    // guarde la cookie HttpOnly que Django devuelve
-                    credentials: 'include',
                     body: JSON.stringify({ username, password }),
                 });
 
@@ -89,8 +72,7 @@ function createAuthStore() {
             }
 
             set({ user: null, isAuthenticated: false, loading: false });
-            // Usar goto para que SvelteKit recargue y hooks.server.ts detecte
-            // que la cookie fue borrada
+            // Usar goto para que SvelteKit recargue y hooks.server.ts detecte que la cookie fue borrada
             goto('/login', { invalidateAll: true });
         },
     };

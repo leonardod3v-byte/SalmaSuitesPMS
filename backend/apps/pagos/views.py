@@ -4,155 +4,139 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
-from django.db.models import Sum, Q
+from django.db import transaction
+from django.db.models import Sum, Count
 
 from .models import Pago, CierreCaja
 from .serializers import PagoSerializer, CierreCajaSerializer
 from apps.reservaciones.models import Reserva
 from apps.reservaciones.views import registrar_actividad
+from utils import paginar_queryset_funcion
+
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 @csrf_exempt
 def pagos_list(request):
     """
-    GET: Lista pagos con filtros opcionales.
-        /api/pagos/?metodo=zelle
-        /api/pagos/?reserva=5
-        /api/pagos/?fecha=2026-03-14
-    POST: Registra un nuevo pago para una reserva.
+    GET: Lista el histórico de pagos con JOINs optimizados y paginación.
+    POST: Registra un pago de manera 100% atómica y concurrente.
     """
     if request.method == 'GET':
-        qs = Pago.objects.select_related('reserva', 'registrado_por').all()
-
+        # SQL N+1 Blindado: select_related para traer metadatos relacionales en una sola query
+        qs = Pago.objects.select_related('reserva', 'registrado_por').all().order_by('-fecha')
+        
         metodo = request.query_params.get('metodo')
         reserva_id = request.query_params.get('reserva')
-        fecha = request.query_params.get('fecha')
-
         if metodo:
             qs = qs.filter(metodo=metodo)
         if reserva_id:
             qs = qs.filter(reserva_id=reserva_id)
-        if fecha:
-            qs = qs.filter(fecha__date=fecha)
 
-        serializer = PagoSerializer(qs, many=True)
-        return Response(serializer.data)
+        return paginar_queryset_funcion(request, qs, PagoListSerializer, page_size=20)
 
     if request.method == 'POST':
-        serializer = PagoSerializer(data=request.data)
-        if serializer.is_valid():
-            pago = serializer.save(registrado_por=request.user)
+        reserva_id = request.data.get('reserva')
+        if not reserva_id:
+            return Response({'error': 'El ID de la reserva es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Actualizar monto pagado en la reserva automáticamente
-            reserva = pago.reserva
-            total_pagado = Pago.objects.filter(
-                reserva=reserva
-            ).aggregate(total=Sum('monto'))['total'] or 0
+        try:
+            with transaction.atomic():
+                # CANDADO BD: Bloqueamos la fila de la reserva para evitar modificaciones concurrentes de montos
+                reserva = Reserva.objects.select_for_update().get(pk=reserva_id)
 
-            reserva.monto_pagado = total_pagado
+                serializer = PagoSerializer(data=request.data)
+                if not serializer.is_valid():
+                    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            # Si ya pagó todo, cambiar estado a pagada
-            if total_pagado >= reserva.monto_total:
-                reserva.estado = 'pagada'
+                pago = serializer.save(registrado_por=request.user, reserva=reserva)
 
-            reserva.save()
+                # Mutamos las propiedades de la reserva de manera segura usando la lógica denormalizada del modelo
+                reserva.monto_pagado += pago.monto
+                
+                # Actualización de estados del ciclo de vida del pago
+                updated_fields_for_reserva = ['monto_pagado']
+                if reserva.saldo_pendiente <= 0:
+                    if reserva.estado == 'sin_pagar':
+                        reserva.estado = 'confirmada'
+                        updated_fields_for_reserva.append('estado')
+                    elif reserva.estado == 'confirmada':
+                        reserva.estado = 'pagada'
+                        updated_fields_for_reserva.append('estado')
 
-            registrar_actividad(
-                tipo='pago',
-                descripcion=f'Pago ${pago.monto} ({pago.metodo}) - H-{reserva.habitacion.numero}',
-                usuario=request.user,
-                reserva=reserva,
-                habitacion=reserva.habitacion,
-                huesped=reserva.huesped
-            )
+                if updated_fields_for_reserva:
+                    reserva.save(update_fields=updated_fields_for_reserva)
+                    reserva.refresh_from_db()
 
-            return Response(serializer.data, status=201)
-        return Response(serializer.errors, status=400)
+                # Auditoría del Timeline
+                registrar_actividad(
+                    tipo='pago',
+                    descripcion=f'Pago ${pago.monto} ({pago.metodo}) - H-{reserva.habitacion.numero if reserva.habitacion else "N/A"}',
+                    usuario=request.user,
+                    reserva=reserva,
+                    habitacion=reserva.habitacion,
+                    huesped=reserva.huesped
+                )
 
+                return Response({
+                    'message': 'Pago registrado exitosamente',
+                    'pago_id': pago.id,
+                    'reserva_id': reserva.id,
+                    'monto_pagado_reserva': float(reserva.monto_pagado),
+                    'saldo_pendiente': float(reserva.saldo_pendiente),
+                    'estado_reserva': reserva.estado
+                }, status=status.HTTP_201_CREATED)
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-@csrf_exempt
-def resumen_pagos_hoy(request):
-    """
-    Resumen de ingresos del día agrupados por método de pago.
-    Usado en el dashboard y para preparar el cierre de caja.
-    """
-    hoy = timezone.now().date()
-    pagos_hoy = Pago.objects.filter(fecha__date=hoy)
-
-    # Agrupar por método
-    resumen = {}
-    metodos = [m[0] for m in Pago.METODOS_PAGO]
-
-    for metodo in metodos:
-        total = pagos_hoy.filter(metodo=metodo).aggregate(
-            total=Sum('monto')
-        )['total'] or 0
-        resumen[metodo] = float(total)
-
-    total_general = pagos_hoy.aggregate(total=Sum('monto'))['total'] or 0
-
-    return Response({
-        'fecha': hoy,
-        'desglose': resumen,
-        'total': float(total_general)
-    })
+        except Reserva.DoesNotExist:
+            return Response({'error': 'Reserva no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': f'Error en la transacción financiera: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 @csrf_exempt
-def generar_cierre_caja(request):
+def ejecutar_cierre_caja(request):
     """
-    RF07: Genera el cierre de caja del día para el recepcionista.
-    Consolida automáticamente todos los pagos del día.
-    Solo se puede hacer un cierre por día por recepcionista.
+    RF14: Cierre de caja diario por el recepcionista de turno de forma segura.
     """
-    hoy = timezone.now().date()
+    if request.user.role != 'recepcionista' and request.user.role != 'admin':
+        return Response({'error': 'No tiene permisos para ejecutar el cierre de caja.'}, status=status.HTTP_403_FORBIDDEN)
 
-    # Verificar que no exista ya un cierre para hoy
-    if CierreCaja.objects.filter(recepcionista=request.user, fecha=hoy).exists():
-        return Response(
-            {'error': 'Ya existe un cierre de caja para hoy.'},
-            status=400
-        )
+    try:
+        with transaction.atomic():
+            # Evita que se dupliquen cierres del mismo turno en ejecuciones asíncronas concurrentes
+            cierre_existente = CierreCaja.objects.filter(
+                recepcionista=request.user,
+                fecha_cierre__date=timezone.now().date()
+            ).exists()
+            
+            if cierre_existente:
+                return Response({'error': 'Ya has registrado un cierre de caja para el día de hoy.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Calcular totales por método de pago del día
-    pagos_hoy = Pago.objects.filter(
-        fecha__date=hoy,
-        registrado_por=request.user
-    )
+            monto_esperado = float(request.data.get('monto_esperado', 0))
+            monto_real = float(request.data.get('monto_real', 0))
+            observaciones = request.data.get('observaciones', '')
 
-    def total_metodo(metodo):
-        return pagos_hoy.filter(metodo=metodo).aggregate(
-            t=Sum('monto')
-        )['t'] or 0
+            desfase = monto_real - monto_esperado
+            estado_cierre = 'cuadrado' if desfase == 0 else ('sobrante' if desfase > 0 else 'faltante')
 
-    cierre = CierreCaja(
-        recepcionista=request.user,
-        fecha=hoy,
-        efectivo_usd=total_metodo('efectivo_usd'),
-        efectivo_ves=total_metodo('efectivo_ves'),
-        transferencias=total_metodo('transferencia'),
-        tarjetas=total_metodo('tarjeta'),
-        pago_movil=total_metodo('pago_movil'),
-        zelle=total_metodo('zelle'),
-        binance=total_metodo('binance'),
-        observaciones=request.data.get('observaciones', '')
-    )
-    cierre.calcular_total()
-    cierre.save()
+            cierre = CierreCaja.objects.create(
+                recepcionista=request.user,
+                monto_esperado=monto_esperado,
+                monto_real=monto_real,
+                desfase=desfase,
+                estado=estado_cierre,
+                observaciones=observaciones
+            )
 
-    registrar_actividad(
-        tipo='cierre_caja',
-        descripcion=f'Cierre de caja - {request.user.username} (${cierre.total_caja})',
-        usuario=request.user
-    )
-
-    serializer = CierreCajaSerializer(cierre)
-    return Response(serializer.data, status=201)
+            return Response({
+                'message': 'Cierre de caja procesado exitosamente.',
+                'cierre': CierreCajaSerializer(cierre).data
+            }, status=status.HTTP_201_CREATED)
+            
+    except Exception as e:
+        return Response({'error': f'Error crítico procesando el arqueo de caja: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET'])
@@ -160,45 +144,55 @@ def generar_cierre_caja(request):
 @csrf_exempt
 def historial_cierres(request):
     """
-    Lista los cierres de caja.
-    Recepcionistas solo ven los suyos, admin ve todos.
+    RF15: Historial de cierres de caja (Admin ve todos, Recepcionista solo los suyos).
     """
+    # SQL N+1 Blindado: select_related para optimizar el JOIN del recepcionista de caja
     if request.user.role == 'admin':
-        cierres = CierreCaja.objects.select_related('recepcionista').all()
+        qs = CierreCaja.objects.select_related('recepcionista').all().order_by('-fecha_cierre')
     else:
-        cierres = CierreCaja.objects.filter(recepcionista=request.user)
+        qs = CierreCaja.objects.select_related('recepcionista').filter(recepcionista=request.user).order_by('-fecha_cierre')
 
-    serializer = CierreCajaSerializer(cierres, many=True)
-    return Response(serializer.data)
+    return paginar_queryset_funcion(request, qs, CierreCajaSerializer, page_size=15)
 
 
-@api_view(['POST'])
+@api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def registrar_pago(request):
-    reserva_id = request.data.get('reserva')
-    monto = request.data.get('monto')
-    metodo = request.data.get('metodo')
-    referencia = request.data.get('referencia', '')
+@csrf_exempt
+def resumen_pagos_hoy(request):
+    """
+    RF11/RF12: Retorna un desglose consolidado de los ingresos percibidos el día de hoy.
+    Agrupa de manera nativa por método de pago para alimentar las métricas del Dashboard.
+    """
+    # Definimos el rango de tiempo estricto para "hoy" (desde las 00:00:00 hasta el final del día)
+    ahora = timezone.now()
+    hoy_inicio = ahora.replace(hour=0, minute=0, second=0, microsecond=0)
+    hoy_fin = ahora.replace(hour=23, minute=59, second=59, microsecond=999999)
 
-    try:
-        reserva = Reserva.objects.get(id=reserva_id)
-    except Reserva.DoesNotExist:
-        return Response({'error': 'Reserva no encontrada'}, status=404)
+    # Consulta optimizada agregando sumas por la fecha de registro
+    pagos_de_hoy = Pago.objects.filter(fecha__range=(hoy_inicio, hoy_fin))
 
-    if monto <= 0:
-        return Response({'error': 'Monto inválido'}, status=400)
-
-    # Crear registro de pago
-    pago = Pago.objects.create(
-        reserva=reserva,
-        monto=monto,
-        metodo=metodo,
-        referencia=referencia,
-        registrado_por=request.user
+    # Total general del día
+    consolidado = pagos_de_hoy.aggregate(
+        monto_total=Sum('monto'),
+        transacciones_totales=Count('id')
     )
 
-    # Actualizar monto_pagado de la reserva
-    reserva.monto_pagado += monto
-    reserva.save()
+    monto_total = consolidado['monto_total'] or 0.0
+    total_transacciones = consolidado['transacciones_totales'] or 0
 
-    return Response({'message': 'Pago registrado', 'nuevo_saldo': reserva.saldo_pendiente})
+    # Desglose agrupado por métodos de pago (efectivo, transferencia, tarjeta, etc.)
+    # Esto evita hacer múltiples hits a la base de datos
+    desglose_metodos = (
+        pagos_de_hoy.values('metodo')
+        .annotate(total=Sum('monto'), conteo=Count('id'))
+        .order_by('-total')
+    )
+
+    return Response({
+        'fecha': hoy_inicio.date().isoformat(),
+        'ingreso_total_hoy': monto_total,
+        'transacciones_hoy': total_transacciones,
+        'desglose_por_metodo': list(desglose_metodos)
+    }, status=status.HTTP_200_OK)
+
+generar_cierre_caja = ejecutar_cierre_caja

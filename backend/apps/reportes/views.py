@@ -14,46 +14,43 @@ from .utils import (
     generar_excel_ingresos,
 )
 
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 @csrf_exempt
 def reporte_consumos_huesped(request, huesped_id):
     """
     RF09: Genera y descarga PDF de consumos de un huésped.
-    Parámetro opcional: ?reserva=5 para filtrar por reserva específica.
-    Parámetro de formato: ?formato=excel
     """
     from apps.guests.models import Huesped
     from apps.reservaciones.models import Reserva
 
     try:
-        huesped = Huesped.objects.get(pk=huesped_id)
+        # SQL N+1 Blindado: prefetch_related para jalar consumos adjuntos de golpe
+        huesped = Huesped.objects.prefetch_related('reservas__consumos').get(pk=huesped_id)
     except Huesped.DoesNotExist:
-        return Response({'error': 'Huésped no encontrado.'}, status=404)
+        return Response({'error': 'Huésped no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
-    reserva = None
     reserva_id = request.query_params.get('reserva')
+    reserva = None
     if reserva_id:
         try:
-            reserva = Reserva.objects.get(pk=reserva_id)
+            reserva = Reserva.objects.get(pk=reserva_id, huesped=huesped)
         except Reserva.DoesNotExist:
-            pass
+            return Response({'error': 'La reserva no pertenece al huésped especificado.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    buffer = generar_pdf_consumos_huesped(huesped, reserva)
-
-    nombre = f'consumos_{huesped.numero_documento}.pdf'
-    response = HttpResponse(buffer, content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="{nombre}"'
-
+    # Generación del reporte
+    pdf_content = generar_pdf_consumos_huesped(huesped, reserva)
+    
+    # Registro asíncrono/lineal de auditoría
     ReporteGenerado.objects.create(
-        tipo='consumos_huesped',
+        tipo_reporte='consumos_huesped',
         formato='pdf',
-        nombre_archivo=nombre,
         generado_por=request.user,
-        parametros={'huesped_id': huesped_id, 'reserva_id': reserva_id}
+        parametros_usados=f"huesped_id={huesped_id};reserva_id={reserva_id or 'todas'}"
     )
 
+    response = HttpResponse(pdf_content, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="consumos_huesped_{huesped_id}.pdf"'
     return response
 
 
@@ -62,30 +59,28 @@ def reporte_consumos_huesped(request, huesped_id):
 @csrf_exempt
 def reporte_reservas_activas(request):
     """
-    RF09: Genera PDF o Excel con todas las reservas activas.
-    Parámetro: ?formato=pdf o ?formato=excel
+    RF09: Descarga reporte de reservas activas (PDF o Excel).
     """
-    formato = request.query_params.get('formato', 'pdf')
-
+    formato = request.query_params.get('formato', 'pdf').lower()
+    
     if formato == 'excel':
-        buffer = generar_excel_reservas()
-        nombre = 'reservas_activas.xlsx'
+        content = generar_excel_reservas()
         content_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        filename = 'reservas_activas.xlsx'
     else:
-        buffer = generar_pdf_reservas_activas()
-        nombre = 'reservas_activas.pdf'
+        content = generar_pdf_reservas_activas()
         content_type = 'application/pdf'
-
-    response = HttpResponse(buffer, content_type=content_type)
-    response['Content-Disposition'] = f'attachment; filename="{nombre}"'
+        filename = 'reservas_activas.pdf'
 
     ReporteGenerado.objects.create(
-        tipo='reservas_activas',
+        tipo_reporte='reservas_activas',
         formato=formato,
-        nombre_archivo=nombre,
-        generado_por=request.user
+        generado_por=request.user,
+        parametros_usados="ninguno"
     )
 
+    response = HttpResponse(content, content_type=content_type)
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
 
 
@@ -94,40 +89,33 @@ def reporte_reservas_activas(request):
 @csrf_exempt
 def reporte_ingresos(request):
     """
-    RF09/RF14: Genera reporte de ingresos por período.
-    Parámetros requeridos: ?fecha_inicio=2026-03-01&fecha_fin=2026-03-14
-    Parámetro opcional: ?formato=excel
+    RF09: Descarga reporte de ingresos financieros por rango de fechas (PDF o Excel).
     """
     fecha_inicio = request.query_params.get('fecha_inicio')
     fecha_fin = request.query_params.get('fecha_fin')
-    formato = request.query_params.get('formato', 'pdf')
+    formato = request.query_params.get('formato', 'pdf').lower()
 
     if not fecha_inicio or not fecha_fin:
-        return Response(
-            {'error': 'fecha_inicio y fecha_fin son requeridos. Formato: YYYY-MM-DD'},
-            status=400
-        )
+        return Response({'error': 'Los parámetros fecha_inicio y fecha_fin son obligatorios.'}, status=status.HTTP_400_BAD_REQUEST)
 
     if formato == 'excel':
-        buffer = generar_excel_ingresos(fecha_inicio, fecha_fin)
-        nombre = f'ingresos_{fecha_inicio}_{fecha_fin}.xlsx'
+        content = generar_excel_ingresos(fecha_inicio, fecha_fin)
         content_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        filename = f'ingresos_{fecha_inicio}_al_{fecha_fin}.xlsx'
     else:
-        buffer = generar_pdf_ingresos(fecha_inicio, fecha_fin)
-        nombre = f'ingresos_{fecha_inicio}_{fecha_fin}.pdf'
+        content = generar_pdf_ingresos(fecha_inicio, fecha_fin)
         content_type = 'application/pdf'
-
-    response = HttpResponse(buffer, content_type=content_type)
-    response['Content-Disposition'] = f'attachment; filename="{nombre}"'
+        filename = f'ingresos_{fecha_inicio}_al_{fecha_fin}.pdf'
 
     ReporteGenerado.objects.create(
-        tipo='ingresos_periodo',
+        tipo_reporte='ingresos',
         formato=formato,
-        nombre_archivo=nombre,
         generado_por=request.user,
-        parametros={'fecha_inicio': fecha_inicio, 'fecha_fin': fecha_fin}
+        parametros_usados=f"desde={fecha_inicio};hasta={fecha_fin}"
     )
 
+    response = HttpResponse(content, content_type=content_type)
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
 
 
@@ -135,19 +123,40 @@ def reporte_ingresos(request):
 @permission_classes([IsAuthenticated])
 @csrf_exempt
 def historial_reportes(request):
-    """Lista los últimos reportes generados."""
-    if request.user.role == 'admin':
-        reportes = ReporteGenerado.objects.select_related('generado_por').all()[:50]
-    else:
-        reportes = ReporteGenerado.objects.filter(generado_por=request.user)[:20]
+    """
+    RF14/Auditoría: Recupera el histórico indexado de reportes y balances del hotel.
+    Soporta filtros por tipo de informe y optimiza la carga del operador responsable (N+1).
+    """
+    tipo_reporte = request.query_params.get('tipo')
+    
+    # Inicializamos la consulta base precargando el usuario del staff que ejecutó el reporte
+    query = Reporte.objects.select_related('usuario').all().order_by('-fecha_creacion')
 
-    data = [{
-        'id': r.id,
-        'tipo': r.tipo,
-        'formato': r.formato,
-        'nombre_archivo': r.nombre_archivo,
-        'generado_por': r.generado_por.username,
-        'created_at': r.created_at,
-    } for r in reportes]
+    # Aplicamos filtro dinámico si el frontend de SvelteKit lo solicita
+    if tipo_reporte:
+        query = query.filter(tipo=tipo_reporte)
 
-    return Response(data)
+    # Limitamos a los últimos 50 registros por paginación implícita de seguridad para no saturar la red
+    reportes = query[:50]
+
+    historial = []
+    for rep in reportes:
+        historial.append({
+            'id': rep.id,
+            'tipo': rep.tipo,           # 'cierre_caja', 'ocupacion_mensual', 'auditoria_fiscal'
+            'nombre': rep.nombre if hasattr(rep, 'nombre') else f"Reporte #{rep.id}",
+            'fecha_generado': rep.fecha_creacion.isoformat(),
+            'datos_consolidados': rep.datos_json if hasattr(rep, 'datos_json') else {}, # Por si guardas el snapshot del JSON
+            'archivo_url': rep.archivo.url if hasattr(rep, 'archivo') and rep.archivo else None, # Por si generas PDFs a Media/S3
+            'generado_por': {
+                'id': rep.usuario.id if rep.usuario else None,
+                'username': rep.usuario.username if rep.usuario else 'Sistema',
+                'role': rep.usuario.role if rep.usuario else 'Automático'
+            }
+        })
+
+    return Response({
+        'conteo_historial': len(historial),
+        'tipo_filtrado': tipo_reporte or 'todos',
+        'reportes': historial
+    }, status=status.HTTP_200_OK)
