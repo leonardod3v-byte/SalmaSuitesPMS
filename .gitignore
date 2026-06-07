@@ -27,3 +27,4 @@ frontend/build/
 frontend/.env*
 frontend/npm-debug.log*
 .aider*
+".aider.*" 
