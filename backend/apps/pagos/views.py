@@ -8,7 +8,7 @@ from django.db import transaction
 from django.db.models import Sum, Count
 
 from .models import Pago, CierreCaja
-from .serializers import PagoSerializer, CierreCajaSerializer
+from .serializers import PagoSerializer, PagoListSerializer, CierreCajaSerializer
 from apps.reservaciones.models import Reserva
 from apps.reservaciones.views import registrar_actividad
 from utils import paginar_queryset_funcion
@@ -98,45 +98,42 @@ def pagos_list(request):
 @csrf_exempt
 def ejecutar_cierre_caja(request):
     """
-    RF14: Cierre de caja diario por el recepcionista de turno de forma segura.
+    RF14: Cierre de caja diario.
+    Calcula automáticamente los totales por método de pago de la fecha actual.
     """
-    if request.user.role != 'recepcionista' and request.user.role != 'admin':
+    if request.user.role not in ['recepcionista', 'admin']:
         return Response({'error': 'No tiene permisos para ejecutar el cierre de caja.'}, status=status.HTTP_403_FORBIDDEN)
 
-    try:
-        with transaction.atomic():
-            # Evita que se dupliquen cierres del mismo turno en ejecuciones asíncronas concurrentes
-            cierre_existente = CierreCaja.objects.filter(
-                recepcionista=request.user,
-                fecha_cierre__date=timezone.now().date()
-            ).exists()
-            
-            if cierre_existente:
-                return Response({'error': 'Ya has registrado un cierre de caja para el día de hoy.'}, status=status.HTTP_400_BAD_REQUEST)
+    hoy = timezone.now().date()
+    
+    with transaction.atomic():
+        # Verificar si ya existe un cierre para hoy
+        if CierreCaja.objects.filter(recepcionista=request.user, fecha=hoy).exists():
+            return Response({'error': 'Ya has registrado un cierre de caja para el día de hoy.'}, status=status.HTTP_400_BAD_REQUEST)
 
-            monto_esperado = float(request.data.get('monto_esperado', 0))
-            monto_real = float(request.data.get('monto_real', 0))
-            observaciones = request.data.get('observaciones', '')
+        # Calcular totales por método de pago de hoy (usando pagos ya registrados)
+        pagos_hoy = Pago.objects.filter(fecha__date=hoy)
+        
+        total_efectivo = pagos_hoy.filter(metodo='efectivo').aggregate(total=Sum('monto'))['total'] or 0
+        total_tarjeta = pagos_hoy.filter(metodo='tarjeta').aggregate(total=Sum('monto'))['total'] or 0
+        total_pago_movil = pagos_hoy.filter(metodo='pago_movil').aggregate(total=Sum('monto'))['total'] or 0
 
-            desfase = monto_real - monto_esperado
-            estado_cierre = 'cuadrado' if desfase == 0 else ('sobrante' if desfase > 0 else 'faltante')
+        observaciones = request.data.get('observaciones', '')
 
-            cierre = CierreCaja.objects.create(
-                recepcionista=request.user,
-                monto_esperado=monto_esperado,
-                monto_real=monto_real,
-                desfase=desfase,
-                estado=estado_cierre,
-                observaciones=observaciones
-            )
+        cierre = CierreCaja.objects.create(
+            recepcionista=request.user,
+            fecha=hoy,
+            total_efectivo=total_efectivo,
+            total_tarjeta=total_tarjeta,
+            total_pago_movil=total_pago_movil,
+            observaciones=observaciones
+        )
+        # El total_general se calcula automáticamente en save()
 
-            return Response({
-                'message': 'Cierre de caja procesado exitosamente.',
-                'cierre': CierreCajaSerializer(cierre).data
-            }, status=status.HTTP_201_CREATED)
-            
-    except Exception as e:
-        return Response({'error': f'Error crítico procesando el arqueo de caja: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({
+            'message': 'Cierre de caja procesado exitosamente.',
+            'cierre': CierreCajaSerializer(cierre).data
+        }, status=status.HTTP_201_CREATED)
 
 
 @api_view(['GET'])
@@ -144,14 +141,14 @@ def ejecutar_cierre_caja(request):
 @csrf_exempt
 def historial_cierres(request):
     """
-    RF15: Historial de cierres de caja (Admin ve todos, Recepcionista solo los suyos).
+    RF15: Historial de cierres de caja.
+    Admin ve todos, recepcionista solo los suyos.
     """
-    # SQL N+1 Blindado: select_related para optimizar el JOIN del recepcionista de caja
     if request.user.role == 'admin':
-        qs = CierreCaja.objects.select_related('recepcionista').all().order_by('-fecha_cierre')
+        qs = CierreCaja.objects.select_related('recepcionista').all().order_by('-fecha')
     else:
-        qs = CierreCaja.objects.select_related('recepcionista').filter(recepcionista=request.user).order_by('-fecha_cierre')
-
+        qs = CierreCaja.objects.select_related('recepcionista').filter(recepcionista=request.user).order_by('-fecha')
+    
     return paginar_queryset_funcion(request, qs, CierreCajaSerializer, page_size=15)
 
 

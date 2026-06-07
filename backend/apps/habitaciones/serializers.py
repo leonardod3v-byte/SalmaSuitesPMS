@@ -9,7 +9,6 @@ class TipoHabitacionSerializer(serializers.ModelSerializer):
 
 
 class HabitacionSerializer(serializers.ModelSerializer):
-    # Muestra el nombre del tipo en lugar de solo el ID
     tipo_nombre = serializers.CharField(source='tipo.nombre', read_only=True)
     tipo_precio = serializers.DecimalField(
         source='tipo.precio_base_noche',
@@ -17,12 +16,15 @@ class HabitacionSerializer(serializers.ModelSerializer):
         decimal_places=2,
         read_only=True
     )
+    # Capacidad máxima desde el tipo
+    capacidad_maxima = serializers.IntegerField(source='tipo.capacidad_maxima', read_only=True)
 
     class Meta:
         model = Habitacion
         fields = [
             'id', 'numero', 'piso', 'estado', 'tiene_minibar',
             'qr_code', 'notas', 'tipo', 'tipo_nombre', 'tipo_precio',
+            'capacidad_maxima',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['qr_code', 'created_at', 'updated_at']

@@ -10,13 +10,9 @@ class Pago(models.Model):
     Ej: abono inicial + pago restante al llegar.
     """
     METODOS_PAGO = [
-        ('efectivo_usd', 'Efectivo USD'),
-        ('efectivo_ves', 'Efectivo Bs.'),
-        ('transferencia', 'Transferencia'),
+        ('efectivo', 'Efectivo'),
         ('tarjeta', 'Tarjeta'),
         ('pago_movil', 'Pago Móvil'),
-        ('zelle', 'Zelle'),
-        ('binance', 'Binance Pay'),
     ]
 
     CONCEPTOS = [
@@ -53,30 +49,28 @@ class Pago(models.Model):
 
 class CierreCaja(models.Model):
     """
-    RF07: Cierre de caja diario por recepcionista.
-    Consolida todos los ingresos del día desglosados por método de pago.
-    Genera un PDF firmado como respaldo.
+    Cierre de caja diario por recepcionista.
+    Consolida los ingresos del día por método de pago.
+    No incluye desglose por moneda (solo totales).
     """
     recepcionista = models.ForeignKey(
         User,
         on_delete=models.PROTECT,
         related_name='cierres_caja'
     )
-    fecha = models.DateField()
+    fecha = models.DateField(auto_now_add=False)  # se asigna manualmente
 
-    # Desglose por método de pago
-    efectivo_usd = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    efectivo_ves = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    transferencias = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    tarjetas = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    pago_movil = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    zelle = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    binance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    # Totales por método de pago (solo los que usas)
+    total_efectivo = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_tarjeta = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_pago_movil = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
-    total_caja = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    # Totales generales
+    total_general = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
     observaciones = models.TextField(blank=True)
 
-    # RF07: Control del PDF generado
+    # PDF generado
     pdf_generado = models.BooleanField(default=False)
     pdf_url = models.CharField(max_length=255, blank=True)
 
@@ -84,20 +78,22 @@ class CierreCaja(models.Model):
 
     class Meta:
         db_table = 'cierres_caja'
-        # Un recepcionista solo puede hacer un cierre por día
-        unique_together = ['recepcionista', 'fecha']
+        unique_together = ['recepcionista', 'fecha']  # un cierre por día y usuario
         ordering = ['-fecha']
         verbose_name = 'Cierre de Caja'
         verbose_name_plural = 'Cierres de Caja'
 
     def __str__(self):
-        return f'Cierre {self.fecha} - {self.recepcionista.username} (${self.total_caja})'
+        return f'Cierre {self.fecha} - {self.recepcionista.username} (${self.total_general})'
 
     def calcular_total(self):
-        """Suma todos los métodos de pago y actualiza el total."""
-        self.total_caja = (
-            self.efectivo_usd + self.efectivo_ves +
-            self.transferencias + self.tarjetas +
-            self.pago_movil + self.zelle + self.binance
+        """Calcula el total general sumando los métodos de pago."""
+        self.total_general = (
+            self.total_efectivo + self.total_tarjeta + self.total_pago_movil
         )
-        return self.total_caja
+        return self.total_general
+
+    def save(self, *args, **kwargs):
+        """Antes de guardar, calcular total automáticamente."""
+        self.calcular_total()
+        super().save(*args, **kwargs)

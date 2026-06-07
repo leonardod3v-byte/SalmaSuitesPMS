@@ -8,7 +8,7 @@
     success: 'check',
     error: 'close',
     info: 'info',
-    warning: 'warning'
+    warning: 'alert'
   };
 
   const getColorVar = (type: ToastType): string => {
@@ -31,7 +31,7 @@
     >
       <div class="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center bg-hotel-bg border border-hotel-border"
           style="color: {getColorVar(t.type)}">
-        <Icon name={iconsMap[t.type]} class="w-5 h-5" />
+        <Icon name={iconsMap[t.type] as any} class="w-5 h-5" />
       </div>
 
       <div class="flex-1 min-w-0 pt-1">

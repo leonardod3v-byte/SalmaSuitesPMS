@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { goto, invalidateAll } from '$app/navigation';
+  import { goto, invalidate } from '$app/navigation';
+  import { page } from '$app/stores';
   import { type ReservaListItem, reservacionesApi } from '$lib/services/reservaciones';
   import BookingCalendar from '$lib/components/reservaciones/BookingCalendar.svelte';
   import ReservaManagementModal from '$lib/components/reservaciones/ReservaManagementModal.svelte';
@@ -14,11 +15,18 @@
   let reservas = $derived((data.reservas ?? []) as ReservaListItem[]);
   let habitaciones = $derived((data.habitaciones ?? []) as { numero: string; tipo_nombre: string; piso: number }[]);
   let semanaInicio = $derived(new Date(data.semanaInicio + 'T00:00:00'));
+  let tipoVista = $derived(data.tipoVista ?? 'activas');
 
   function navegarSemana(delta: number) {
     const nueva = new Date(semanaInicio);
     nueva.setDate(nueva.getDate() + delta * 7);
-    goto(`?semana=${nueva.toISOString().split('T')[0]}`, { invalidateAll: true, noScroll: true });
+    goto(`?semana=${nueva.toISOString().split('T')[0]}&tipo=${tipoVista}`, { invalidateAll: false });
+  }
+
+  function cambiarTipo(nuevoTipo: string) {
+    const params = new URLSearchParams($page.url.searchParams);
+    params.set('tipo', nuevoTipo);
+    goto(`?${params.toString()}`, { invalidateAll: false });
   }
 
   const rangoFechaTexto = $derived(() => {
@@ -44,7 +52,8 @@
 
   function cerrarModalGestion() {
     reservaSeleccionada = null;
-    invalidateAll();
+    // Recargar solo la lista de reservas (no todo el layout)
+    invalidate('reservas:lista');
   }
 
   const statsHoy = $derived(() => {
@@ -52,7 +61,7 @@
     return {
       checkins:  reservas.filter(r => r.fecha_entrada === hoy).length,
       checkouts: reservas.filter(r => r.fecha_salida === hoy).length,
-      ocupadas:  reservas.filter(r => r.estado === 'confirmada' || r.estado === 'pagada').length,
+      ocupadas:  reservas.filter(r => r.estado === 'confirmada' || r.estado === 'pagada' || r.estado === 'check_in').length,
     };
   });
 </script>
@@ -69,6 +78,24 @@
       Nuevo Check-In
     </Button>
   </PageHeader>
+
+  <!-- Filtros de historial -->
+  <div class="flex gap-2">
+    <button
+      onclick={() => cambiarTipo('activas')}
+      class="px-5 py-2 rounded-full text-[11px] font-black uppercase tracking-wider border transition-all
+              {tipoVista === 'activas' ? 'bg-hotel-gold text-hotel-bg border-hotel-gold' : 'bg-hotel-surface text-hotel-text-tertiary border-hotel-border hover:border-hotel-gold/50'}"
+    >
+      Activas
+    </button>
+    <button
+      onclick={() => cambiarTipo('finalizadas')}
+      class="px-5 py-2 rounded-full text-[11px] font-black uppercase tracking-wider border transition-all
+              {tipoVista === 'finalizadas' ? 'bg-hotel-gold text-hotel-bg border-hotel-gold' : 'bg-hotel-surface text-hotel-text-tertiary border-hotel-border hover:border-hotel-gold/50'}"
+    >
+      Finalizadas
+    </button>
+  </div>
 
   <!-- KPIs Cards -->
   <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -108,7 +135,13 @@
         <Button variant="ghost" size="sm" onclick={() => navegarSemana(-1)}>
           <Icon name="chevron-left" class="w-5 h-5" />
         </Button>
-        <Button variant="ghost" size="sm" onclick={() => goto('/reservaciones')}>
+        <Button variant="ghost" size="sm" onclick={() => {
+          const hoy = new Date();
+          const dia = hoy.getDay();
+          const lunes = new Date(hoy);
+          lunes.setDate(hoy.getDate() - (dia === 0 ? 6 : dia - 1));
+          goto(`?semana=${lunes.toISOString().split('T')[0]}&tipo=${tipoVista}`, { invalidateAll: false });
+        }}>
           Hoy
         </Button>
         <Button variant="ghost" size="sm" onclick={() => navegarSemana(1)}>
@@ -126,11 +159,11 @@
   <ReservaManagementModal
     onclose={() => {
       modalCheckin = false;
-      invalidateAll();
+      invalidate('reservas:lista');
     }}
     onsave={() => {
       modalCheckin = false;
-      invalidateAll();
+      invalidate('reservas:lista');
     }}
   />
 {/if}
@@ -139,5 +172,6 @@
   <ReservaManagementModal
     reserva={reservaSeleccionada}
     onclose={cerrarModalGestion}
+    onsave={() => invalidate('reservas:lista')}
   />
 {/if}

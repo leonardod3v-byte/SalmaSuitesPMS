@@ -133,7 +133,7 @@
       <p class="text-sm font-display italic text-hotel-text-tertiary">No hay unidades que coincidan con los criterios</p>
     </div>
   {:else}
-    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {#each habitacionesFiltradas as hab (hab.id)}
         <RoomCard {hab} onclick={() => habitacionSeleccionada = hab} />
       {/each}

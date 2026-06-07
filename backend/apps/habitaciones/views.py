@@ -80,6 +80,40 @@ def habitacion_detail(request, pk):
 @csrf_exempt
 def cambiar_estado_limpieza(request, pk):
     """
+    Cambia el estado de limpieza/mantenimiento de una habitación.
+    No permite cambiar el estado si la habitación está ocupada.
+    """
+    nuevo_estado = request.data.get('estado')
+    valid_estados = [e[0] for e in Habitacion.ESTADOS]
+
+    if not nuevo_estado or nuevo_estado not in valid_estados:
+        return Response({'error': f'Estado inválido. Opciones: {", ".join(valid_estados)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        with transaction.atomic():
+            habitacion = Habitacion.objects.select_for_update().get(pk=pk)
+
+            # 🔴 Regla de negocio: No se puede cambiar el estado si está ocupada
+            if habitacion.estado == 'ocupada':
+                return Response({'error': 'No se puede cambiar el estado de una habitación ocupada. Primero debe finalizar la reserva.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            estado_anterior = habitacion.estado
+            habitacion.estado = nuevo_estado
+            habitacion.save(update_fields=['estado'])
+
+            HistorialEstadoHabitacion.objects.create(
+                habitacion=habitacion,
+                estado_anterior=estado_anterior,
+                estado_nuevo=nuevo_estado,
+                cambiado_por=request.user,
+                nota=request.data.get('motivo', 'Cambio de estado desde interfaz')
+            )
+
+        return Response({'message': f'Habitación {habitacion.numero} cambiada de {estado_anterior} a {nuevo_estado}.'}, status=status.HTTP_200_OK)
+
+    except Habitacion.DoesNotExist:
+        return Response({'error': 'Habitación no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+    """
     RF12: Cambia el estado de limpieza de una habitación de forma atómica y concurrente.
     """
     nuevo_estado = request.data.get('estado')

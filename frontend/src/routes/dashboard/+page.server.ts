@@ -14,7 +14,6 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
     const headers = { Cookie: `${COOKIE_NAME}=${token}` };
 
     // Pre-cargar los 4 endpoints del dashboard en paralelo
-    // Las URLs ahora coinciden exactamente con backend/apps/dashboard/urls.py
     const [statsRes, habitacionesRes, actividadesRes, ocupacionRes] = await Promise.allSettled([
         fetch(`${API_BASE}/dashboard/stats/`, { headers }),
         fetch(`${API_BASE}/dashboard/habitaciones-grid/`, { headers }),
@@ -22,7 +21,6 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
         fetch(`${API_BASE}/dashboard/ocupacion-semanal/`, { headers }),
     ]);
 
-    // Promise.allSettled nunca lanza — manejamos cada resultado individualmente
     const safeJson = async (result: PromiseSettledResult<Response>, fallback: unknown) => {
         if (result.status === 'rejected') return fallback;
         if (!result.value.ok) return fallback;

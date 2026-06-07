@@ -13,11 +13,25 @@
 
   let { data }: { data: PageData } = $props();
 
+  // Los datos vienen como array gracias al load corregido
   let huespedes = $state<HuespedListItem[]>([]);
-  $effect(() => { huespedes = data.huespedes ?? []; });
+  // Sincronizar cuando data.huespedes cambie (filtros, recarga)
+  $effect(() => {
+    huespedes = data.huespedes ?? [];
+  });
 
-  let busqueda = $state(data.search ?? '');
-  let soloVip = $state(data.vip === 'true');
+  // Para evitar la advertencia "captura solo el valor inicial", usamos $derived
+  // o sincronizamos con $effect. Pero como son valores que vienen de la URL,
+  // los tomamos directamente de $page.url.searchParams
+  let busqueda = $state('');
+  let soloVip = $state(false);
+
+  // Sincronizar con los parámetros de la URL cada vez que cambia la página
+  $effect(() => {
+    const params = $page.url.searchParams;
+    busqueda = params.get('search') ?? '';
+    soloVip = params.get('vip') === 'true';
+  });
 
   const tieneFiltros = $derived(busqueda !== '' || soloVip);
   const isAdmin = $derived($auth?.user?.role === 'admin');
@@ -53,6 +67,30 @@
   function onVipToggled(id: number, nuevoEstado: boolean) {
     huespedes = huespedes.map(h => h.id === id ? { ...h, es_vip: nuevoEstado } : h);
   }
+
+  // Exportar a CSV (datos actualmente visibles en la tabla)
+  function exportarCSV() {
+    const columnas = ['ID', 'Nombre completo', 'Documento', 'Teléfono', 'Email', 'VIP', 'Fecha registro'];
+    const filas = huespedes.map(h => [
+      h.id,
+      h.nombre_completo,
+      h.documento_formateado,
+      h.telefono,
+      h.email,
+      h.es_vip ? 'Sí' : 'No',
+      new Date(h.created_at).toLocaleDateString('es-VE')
+    ]);
+    const csvContent = [columnas, ...filas].map(row => row.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.setAttribute('download', `huespedes_${new Date().toISOString().slice(0,19)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
 </script>
 
 <svelte:head>
@@ -64,7 +102,7 @@
   <PageHeader title="Huéspedes" subtitle={`${huespedes.length} Registros`}>
     {#if isAdmin}
       <div class="flex items-center gap-3">
-        <Button variant="secondary" onclick={() => {}}>
+        <Button variant="secondary" onclick={exportarCSV}>
           <Icon name="export" class="w-4 h-4" />
           Exportar registro
         </Button>

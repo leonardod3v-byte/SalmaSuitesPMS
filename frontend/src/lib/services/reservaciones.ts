@@ -76,6 +76,9 @@ export const reservacionesApi = {
   agregarConsumo: (id: number, consumo: any) => apiFetch(`/reservaciones/${id}/consumo/`, { method: 'POST', body: JSON.stringify(consumo) }),
   cambiarHabitacion: (id: number, nuevaHabitacionId: number, motivo: string) => apiFetch(`/reservaciones/${id}/cambiar-habitacion/`, { method: 'POST', body: JSON.stringify({ nueva_habitacion_id: nuevaHabitacionId, motivo }) }),
   registrarPago: (id: number, pago: { monto: number; metodo: string; referencia: string; fecha: string }) => apiFetch(`/pagos/`, { method: 'POST', body: JSON.stringify({ reserva: id, ...pago }) }),
+  checkin: (id: number) => apiFetch(`/reservaciones/${id}/checkin/`, { method: 'POST' }),
+  checkout: (id: number) => apiFetch(`/reservaciones/${id}/checkout/`, { method: 'POST' }),
+  cancelar: (id: number) => apiFetch(`/reservaciones/${id}/cancelar/`, { method: 'POST' }),
 };
 
 export const METODOS_PAGO = [

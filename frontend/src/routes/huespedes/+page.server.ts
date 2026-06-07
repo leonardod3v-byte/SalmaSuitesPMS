@@ -10,7 +10,6 @@ export const load: PageServerLoad = async ({ locals, cookies, url }) => {
     const token   = cookies.get(COOKIE_NAME);
     const headers = { Cookie: `${COOKIE_NAME}=${token}` };
 
-    // Pasar query params del cliente al backend (search, vip)
     const search = url.searchParams.get('search') ?? '';
     const vip    = url.searchParams.get('vip') ?? '';
 
@@ -21,7 +20,10 @@ export const load: PageServerLoad = async ({ locals, cookies, url }) => {
 
     try {
         const res = await fetch(`${API_BASE}/huespedes/${qs}`, { headers });
-        const huespedes = res.ok ? await res.json() : [];
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        // Extraer el array de resultados (paginación)
+        const huespedes = Array.isArray(data) ? data : (data.results || []);
         return { user: locals.user, huespedes, search, vip };
     } catch {
         return { user: locals.user, huespedes: [], search, vip };

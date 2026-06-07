@@ -31,15 +31,19 @@ def reservas_list(request):
         # BLINDADO SQL N+1: Trae llaves foráneas y colecciones ManyToMany de forma óptima
         qs = Reserva.objects.select_related('huesped', 'habitacion', 'habitacion__tipo')\
                             .prefetch_related('consumos', 'pagos')\
-                            .all().order_by('-fecha_creacion')
+                            .all().order_by('-created_at')
 
         estado = request.query_params.get('estado')
         search = request.query_params.get('search')
-        
+        estados_param = request.query_params.get('estados')   # ← NUEVO
+
         if estado:
             qs = qs.filter(estado=estado)
         if search:
             qs = qs.filter(Q(huesped__nombre__icontains=search) | Q(huesped__apellido__icontains=search))
+        if estados_param:
+            estados_lista = estados_param.split(',')
+            qs = qs.filter(estado__in=estados_lista)
 
         return paginar_queryset_funcion(request, qs, ReservaListSerializer, page_size=15)
 
@@ -456,3 +460,40 @@ def cambiar_habitacion(request, pk):
     except (Reserva.DoesNotExist, Habitacion.DoesNotExist):
         return Response({'error': 'La reserva o la nueva habitación especificada no existen.'}, status=status.HTTP_404_NOT_FOUND)
 
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@csrf_exempt
+def cancelar_reserva(request, pk):
+    """
+    Cancela una reserva (estado 'cancelada') y libera la habitación si estaba ocupada.
+    """
+    try:
+        with transaction.atomic():
+            reserva = Reserva.objects.select_related('habitacion').select_for_update().get(pk=pk)
+            
+            if reserva.estado in ['check_out', 'cancelada', 'no_show']:
+                return Response({'error': f'No se puede cancelar una reserva en estado {reserva.estado}'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            reserva.estado = 'cancelada'
+            reserva.save(update_fields=['estado'])
+            
+            # Liberar habitación si estaba ocupada o reservada
+            habitacion = reserva.habitacion
+            if habitacion and habitacion.estado == 'ocupada':
+                habitacion.estado = 'libre'
+                habitacion.save(update_fields=['estado'])
+            
+            registrar_actividad(
+                tipo='cancelacion',
+                descripcion=f'Reserva #{reserva.id} cancelada',
+                usuario=request.user,
+                reserva=reserva,
+                habitacion=habitacion,
+                huesped=reserva.huesped
+            )
+            
+            return Response({'message': 'Reserva cancelada exitosamente'}, status=status.HTTP_200_OK)
+    except Reserva.DoesNotExist:
+        return Response({'error': 'Reserva no encontrada'}, status=status.HTTP_404_NOT_FOUND)

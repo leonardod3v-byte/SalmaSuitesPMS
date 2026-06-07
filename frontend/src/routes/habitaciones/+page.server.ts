@@ -20,9 +20,29 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
         try { return await r.value.json(); } catch { return fallback; }
     };
 
+    let habitacionesData = await safeJson(habitacionesRes, { results: [] });
+    // Extraer array de resultados paginados
+    let habitacionesArray = Array.isArray(habitacionesData) ? habitacionesData : (habitacionesData.results || []);
+
+    // Mapear a la estructura que espera el componente
+    const habitaciones = habitacionesArray.map((item: any) => ({
+        id: item.id,
+        numero: item.numero,
+        piso: item.piso,
+        estado: item.estado,
+        tiene_minibar: item.tiene_minibar,
+        // tipo puede ser objeto o ID; normalizamos
+        tipo: typeof item.tipo === 'object' ? item.tipo.id : item.tipo,
+        tipo_nombre: typeof item.tipo === 'object' ? item.tipo.nombre : (item.tipo_nombre || 'Estándar'),
+        tipo_precio: item.tipo_precio,
+        capacidad_maxima: item.capacidad_maxima 
+    }));
+
+    const tipos = await safeJson(tiposRes, []);
+
     return {
         user: locals.user,
-        habitaciones: await safeJson(habitacionesRes, []),
-        tipos:        await safeJson(tiposRes, []),
+        habitaciones,
+        tipos
     };
 };

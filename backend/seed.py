@@ -209,6 +209,17 @@ for r in reservas_data:
     reservas_creadas.append(obj)
 print(f"✓ Reservas: {Reserva.objects.count()}")
 
+# Reserva en check_in
+Reserva.objects.create(
+    habitacion=Habitacion.objects.get(numero='101'),
+    huesped=Huesped.objects.first(),
+    fecha_entrada=hoy - timedelta(days=2),
+    fecha_salida=hoy + timedelta(days=2),
+    estado='check_in',
+    monto_total=200.00,
+    creada_por=admin
+)
+
 # ── Actividades ────────────────────────────────────────────────────────────
 # Limpiar actividades anteriores (ya se borraron al inicio, pero por si acaso)
 Actividad.objects.all().delete()

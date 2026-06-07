@@ -18,7 +18,6 @@ export const load: PageServerLoad = async ({ locals, cookies, url }) => {
     } else {
         semanaInicio = new Date();
         const dia = semanaInicio.getDay();
-        // Ajustar al lunes (0=dom, 1=lun, ...)
         semanaInicio.setDate(semanaInicio.getDate() - (dia === 0 ? 6 : dia - 1));
     }
 
@@ -26,14 +25,35 @@ export const load: PageServerLoad = async ({ locals, cookies, url }) => {
     semanaFin.setDate(semanaFin.getDate() + 6);
     const fmtISO = (d: Date) => d.toISOString().split('T')[0];
 
+    // Parámetros base para el calendario (rango de fechas)
     const params = new URLSearchParams();
-    // Traer reservas que se solapen con la semana actual
     params.set('fecha_desde', fmtISO(semanaInicio));
     params.set('fecha_hasta',  fmtISO(semanaFin));
 
-    const safeJson = async (r: PromiseSettledResult<Response>, fallback: unknown) => {
+    // 🔹 FILTRO DE HISTORIAL: obtener de la URL qué mostrar (activas o finalizadas)
+    const tipoVista = url.searchParams.get('tipo') ?? 'activas';
+    let estadosFiltro: string[] = [];
+    if (tipoVista === 'activas') {
+        estadosFiltro = ['sin_pagar', 'confirmada', 'pagada', 'check_in'];
+    } else {
+        estadosFiltro = ['check_out', 'cancelada', 'no_show'];
+    }
+    if (estadosFiltro.length) {
+        params.set('estados', estadosFiltro.join(','));
+    }
+
+    const safeJsonPaginated = async (r: PromiseSettledResult<Response>, fallback: unknown[]) => {
         if (r.status === 'rejected' || !r.value.ok) return fallback;
-        try { return await r.value.json(); } catch { return fallback; }
+        try {
+            const data = await r.value.json();
+            if (data && typeof data === 'object' && Array.isArray(data.results)) {
+                return data.results;
+            }
+            if (Array.isArray(data)) return data;
+            return fallback;
+        } catch {
+            return fallback;
+        }
     };
 
     const [reservasRes, habitacionesRes] = await Promise.allSettled([
@@ -43,9 +63,10 @@ export const load: PageServerLoad = async ({ locals, cookies, url }) => {
 
     return {
         user:          locals.user,
-        reservas:      await safeJson(reservasRes, []),
-        habitaciones:  await safeJson(habitacionesRes, []),
+        reservas:      await safeJsonPaginated(reservasRes, []),
+        habitaciones:  await safeJsonPaginated(habitacionesRes, []),
         semanaInicio:  fmtISO(semanaInicio),
         semanaFin:     fmtISO(semanaFin),
+        tipoVista,
     };
 };

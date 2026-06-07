@@ -1,12 +1,26 @@
+// frontend/src/lib/stores/auth.ts
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 import { goto } from '$app/navigation';
 import type { User, AuthState } from '$lib/types/auth';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const COOKIE_NAME = 'auth_token';
+
+// Funciones auxiliares para manejar cookies en el cliente
+function setCookie(name: string, value: string, days: number = 7) {
+    if (!browser) return;
+    const expires = new Date();
+    expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
+    document.cookie = `${name}=${value}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+}
+
+function deleteCookie(name: string) {
+    if (!browser) return;
+    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax`;
+}
 
 function createAuthStore() {
-    // Estado inicial vacío — la fuente de verdad es el servidor
     const { subscribe, set, update } = writable<AuthState>({
         user: null,
         isAuthenticated: false,
@@ -15,8 +29,8 @@ function createAuthStore() {
 
     return {
         subscribe,
-        
-        // Permite forzar el estado (útil para la sincronización desde las Svelte Pages)
+
+        // Permite sincronizar el estado desde el servidor (usado en +layout.server.ts)
         init(user: User | null) {
             set({
                 user,
@@ -33,14 +47,22 @@ function createAuthStore() {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password }),
+                    credentials: 'include', // importante para recibir cookies si el backend las enviara
                 });
 
                 const data = await res.json().catch(() => ({}));
 
                 if (!res.ok) {
                     throw new Error(
-                        data?.non_field_errors?.[0] || data?.detail || 'Credenciales inválidas'
+                        data?.non_field_errors?.[0] || data?.detail || data?.error || 'Credenciales inválidas'
                     );
+                }
+
+                // Guardar el token en una cookie (para que hooks.server.ts lo lea)
+                if (data.token) {
+                    setCookie(COOKIE_NAME, data.token, 7);
+                } else {
+                    console.warn('No se recibió token del backend');
                 }
 
                 const newState: AuthState = {
@@ -62,17 +84,22 @@ function createAuthStore() {
             if (!browser) return;
 
             try {
-                // Django limpia la cookie desde el servidor
+                // Llamar al endpoint de logout para invalidar el token en el backend
                 await fetch(`${API_URL}/auth/logout/`, {
                     method: 'POST',
                     credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
                 });
-            } catch {
-                // Si falla el fetch, igual limpiamos el estado local
+            } catch (err) {
+                // Si falla, igual limpiamos localmente
+                console.warn('Error en logout remoto', err);
             }
 
+            // Eliminar la cookie
+            deleteCookie(COOKIE_NAME);
+
             set({ user: null, isAuthenticated: false, loading: false });
-            // Usar goto para que SvelteKit recargue y hooks.server.ts detecte que la cookie fue borrada
+            // Forzar recarga completa de la autenticación en el servidor
             goto('/login', { invalidateAll: true });
         },
     };
