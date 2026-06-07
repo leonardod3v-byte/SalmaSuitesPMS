@@ -3,34 +3,45 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from django.views.decorators.csrf import csrf_exempt
-from django.db.models import Q
+from django.db.models import Q, F  # Importa F para expresiones atómicas
+from django.db import transaction  # Importa transaction para bloques atómicos
 
 from .models import Producto, MovimientoInventario
 from .serializers import ProductoSerializer, ProductoListSerializer, MovimientoSerializer
 
 
-def registrar_movimiento(producto, tipo, cantidad, usuario, motivo=''):
+def registrar_movimiento(producto, tipo, cantidad_movimiento, usuario, motivo=''):
     """
     Función auxiliar para registrar cualquier movimiento de inventario
-    y actualizar el stock del producto automáticamente.
+    y actualizar el stock del producto automáticamente de forma atómica.
+    Debe ser llamada dentro de un bloque transaction.atomic()
+    con una instancia de producto obtenida via select_for_update().
+
+    'cantidad_movimiento' puede ser positiva (entrada/ajuste de aumento) o negativa (salida/ajuste de disminución).
     """
+    # Se asegura que 'producto' viene con el stock más reciente y está bloqueado.
     stock_anterior = producto.stock_actual
-    stock_nuevo = max(0, stock_anterior + cantidad)
+
+    # Usa F() para una actualización atómica en la base de datos.
+    producto.stock_actual = F('stock_actual') + cantidad_movimiento
+    producto.save(update_fields=['stock_actual'])  # Guarda solo el campo stock_actual
+
+    # Refresca la instancia del producto para obtener el valor del stock actualizado
+    # ANTES de crear el registro de movimiento, para que stock_nuevo sea exacto.
+    producto.refresh_from_db()
+    stock_nuevo = producto.stock_actual
 
     MovimientoInventario.objects.create(
         producto=producto,
         tipo=tipo,
-        cantidad=cantidad,
+        cantidad=abs(cantidad_movimiento),  # Siempre se guarda la cantidad en positivo en el MovimientoInventario
         stock_anterior=stock_anterior,
         stock_nuevo=stock_nuevo,
         motivo=motivo,
         registrado_por=usuario
     )
 
-    producto.stock_actual = stock_nuevo
-    producto.save()
-
-    return stock_nuevo
+    return stock_anterior, stock_nuevo  # Retorna ambos para flexibilidad en las vistas
 
 
 @api_view(['GET', 'POST'])
@@ -127,28 +138,41 @@ def entrada_stock(request, pk):
     Registra una entrada de stock (reabastecimiento).
     Body: { "cantidad": 20, "motivo": "Compra semanal" }
     """
+    # 3. Validación estricta
+    cantidad_str = request.data.get('cantidad')
+    if not cantidad_str:
+        return Response({'error': 'La cantidad es requerida.'}, status=status.HTTP_400_BAD_REQUEST)
     try:
-        producto = Producto.objects.get(pk=pk)
+        cantidad = int(cantidad_str)
+    except ValueError:
+        return Response({'error': 'La cantidad debe ser un número entero válido.'}, status=status.HTTP_400_BAD_REQUEST)
+    if cantidad <= 0:
+        return Response({'error': 'La cantidad debe ser un número entero positivo.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        # 1. Envuelve la lógica en transaction.atomic() y usa select_for_update()
+        with transaction.atomic():
+            producto = Producto.objects.select_for_update().get(pk=pk)  # Bloquea el producto para evitar race conditions
+
+            # 2. La función registrar_movimiento ahora usa F() internamente y retorna el stock anterior y nuevo
+            stock_antes, stock_despues = registrar_movimiento(
+                producto=producto,
+                tipo='entrada',
+                cantidad_movimiento=cantidad,  # Cantidad positiva para entrada
+                usuario=request.user,
+                motivo=request.data.get('motivo', 'Entrada de stock')
+            )
+
+        return Response({
+            'message': f'Stock actualizado correctamente.',
+            'stock_anterior': stock_antes,
+            'stock_nuevo': stock_despues
+        })
     except Producto.DoesNotExist:
-        return Response({'error': 'Producto no encontrado.'}, status=404)
-
-    cantidad = request.data.get('cantidad')
-    if not cantidad or int(cantidad) <= 0:
-        return Response({'error': 'La cantidad debe ser mayor a 0.'}, status=400)
-
-    nuevo_stock = registrar_movimiento(
-        producto=producto,
-        tipo='entrada',
-        cantidad=int(cantidad),
-        usuario=request.user,
-        motivo=request.data.get('motivo', 'Entrada de stock')
-    )
-
-    return Response({
-        'message': f'Stock actualizado correctamente.',
-        'stock_anterior': nuevo_stock - int(cantidad),
-        'stock_nuevo': nuevo_stock
-    })
+        return Response({'error': 'Producto no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        # Captura errores generales que puedan ocurrir dentro de la transacción.
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['POST'])
@@ -159,30 +183,44 @@ def ajuste_stock(request, pk):
     Ajuste manual del stock (pérdidas, correcciones, etc.).
     Body: { "stock_nuevo": 15, "motivo": "Corrección de inventario" }
     """
+    # 3. Validación estricta
+    stock_nuevo_str = request.data.get('stock_nuevo')
+    if stock_nuevo_str is None:
+        return Response({'error': 'El nuevo stock es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
     try:
-        producto = Producto.objects.get(pk=pk)
+        stock_nuevo_target = int(stock_nuevo_str)
+    except ValueError:
+        return Response({'error': 'El nuevo stock debe ser un número entero válido.'}, status=status.HTTP_400_BAD_REQUEST)
+    if stock_nuevo_target < 0:
+        return Response({'error': 'El nuevo stock debe ser un número entero no negativo.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        # 1. Envuelve la lógica en transaction.atomic() y usa select_for_update()
+        with transaction.atomic():
+            producto = Producto.objects.select_for_update().get(pk=pk)  # Bloquea el producto
+            
+            # Calcular la diferencia entre el stock deseado y el actual (bloqueado)
+            diferencia = stock_nuevo_target - producto.stock_actual
+            tipo = 'ajuste' if diferencia >= 0 else 'perdida'  # La lógica para tipo se mantiene
+
+            # 2. La función registrar_movimiento ahora usa F() internamente y retorna el stock anterior y nuevo
+            _, new_stock = registrar_movimiento(  # Se ignora old_stock si no se necesita en la respuesta
+                producto=producto,
+                tipo=tipo,
+                cantidad_movimiento=diferencia,  # Puede ser positivo o negativo
+                usuario=request.user,
+                motivo=request.data.get('motivo', 'Ajuste manual')
+            )
+
+        return Response({
+            'message': 'Stock ajustado correctamente.',
+            'stock_nuevo': new_stock
+        })
     except Producto.DoesNotExist:
-        return Response({'error': 'Producto no encontrado.'}, status=404)
-
-    stock_nuevo = request.data.get('stock_nuevo')
-    if stock_nuevo is None or int(stock_nuevo) < 0:
-        return Response({'error': 'stock_nuevo debe ser un número positivo.'}, status=400)
-
-    diferencia = int(stock_nuevo) - producto.stock_actual
-    tipo = 'ajuste' if diferencia >= 0 else 'perdida'
-
-    registrar_movimiento(
-        producto=producto,
-        tipo=tipo,
-        cantidad=diferencia,
-        usuario=request.user,
-        motivo=request.data.get('motivo', 'Ajuste manual')
-    )
-
-    return Response({
-        'message': 'Stock ajustado correctamente.',
-        'stock_nuevo': producto.stock_actual
-    })
+        return Response({'error': 'Producto no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        # Captura errores generales que puedan ocurrir dentro de la transacción.
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET'])
