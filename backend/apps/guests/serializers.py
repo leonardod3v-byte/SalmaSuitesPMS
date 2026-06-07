@@ -12,6 +12,8 @@ class HuespedSerializer(serializers.ModelSerializer):
             'id', 'tipo_documento', 'numero_documento',
             'nombre', 'apellido', 'nombre_completo', 'documento_formateado',
             'telefono', 'email', 'es_vip', 'notas', 'acompanantes',
+            'procedencia', 'profesion', 'edad', 'nacionalidad',
+            'estado_civil', 'fecha_nacimiento', 'telefono_contacto',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at']

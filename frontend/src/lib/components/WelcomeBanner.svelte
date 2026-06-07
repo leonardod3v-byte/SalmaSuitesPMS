@@ -1,8 +1,8 @@
 <script lang="ts">
   import { auth } from '$lib/stores/auth';
   import { onMount } from 'svelte';
+  import Icon from '$lib/components/Icons.svelte';
 
-  // 1. DEFINICIÓN DE PROPS (Sustituye a export let)
   interface Props {
     stats?: {
       checkIns: number;
@@ -12,7 +12,6 @@
 
   let { stats = { checkIns: 0, checkOuts: 0 } }: Props = $props();
 
-  // 2. RELOJ EN TIEMPO REAL
   let time = $state(new Date());
   
   onMount(() => {
@@ -26,7 +25,6 @@
     second: '2-digit' 
   }));
 
-  // 3. FECHA Y SALUDO
   const fechaRaw = new Date().toLocaleDateString('es-ES', {
     weekday: 'long', day: 'numeric', month: 'long'
   });
@@ -34,9 +32,6 @@
 
   const hora = new Date().getHours();
   const saludo = hora < 12 ? 'Buenos días' : hora < 18 ? 'Buenas tardes' : 'Buenas noches';
-  
-  const iconoCheckIn = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
-  const iconoCheckOut = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>`;
 </script>
 
 <div class="relative rounded-2xl p-8 overflow-hidden border border-hotel-border bg-linear-to-br from-hotel-gold/10 via-hotel-surface to-hotel-bg shadow-hotel-lg">
@@ -54,11 +49,11 @@
         <div class="h-4 w-px bg-hotel-border hidden sm:block"></div>
         <div class="flex items-center gap-4">
           <span class="flex items-center gap-1.5 text-hotel-success-light font-bold">
-            {@html iconoCheckIn}
+            <Icon name="checkIn" class="w-3.5 h-3.5" />
             {stats.checkIns} <span class="text-[10px] uppercase tracking-tighter opacity-70">Check-In</span>
           </span>
           <span class="flex items-center gap-1.5 text-hotel-error-light font-bold">
-            {@html iconoCheckOut}
+            <Icon name="checkOut" class="w-3.5 h-3.5" />
             {stats.checkOuts} <span class="text-[10px] uppercase tracking-tighter opacity-70">Check-Out</span>
           </span>
         </div>

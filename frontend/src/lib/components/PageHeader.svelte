@@ -4,11 +4,11 @@
   let {
     title,
     subtitle = '',
-    actions
+    children
   }: {
     title: string;
     subtitle?: string;
-    actions?: Snippet;
+    children?: Snippet;
   } = $props();
 </script>
 
@@ -19,15 +19,15 @@
     </h1>
     {#if subtitle}
       <p class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-gold mt-1">
-      <span class="w-2 h-2 rounded-full bg-hotel-gold animate-pulse"></span>
+        <span class="w-2 h-2 rounded-full bg-hotel-gold animate-pulse inline-block mr-2"></span>
         {subtitle}
       </p>
     {/if}
   </div>
 
-  {#if actions}
+  {#if children}
     <div class="flex items-center gap-3 w-full sm:w-auto">
-      {@render actions()}
+      {@render children()}
     </div>
   {/if}
 </header>

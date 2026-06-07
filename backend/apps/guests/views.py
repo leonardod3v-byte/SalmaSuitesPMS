@@ -15,9 +15,9 @@ from .serializers import HuespedSerializer, HuespedListSerializer
 def huespedes_list(request):
     """
     GET: Lista todos los huéspedes.
-         Soporta búsqueda por nombre, apellido o documento:
-         /api/huespedes/?search=garcia
-         /api/huespedes/?vip=true
+        Soporta búsqueda por nombre, apellido o documento:
+        /api/huespedes/?search=garcia
+        /api/huespedes/?vip=true
     POST: Registra un nuevo huésped.
     """
     if request.method == 'GET':

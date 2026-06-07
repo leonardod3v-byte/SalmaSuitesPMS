@@ -36,9 +36,6 @@ def registrar_actividad(tipo, descripcion, usuario, reserva=None, habitacion=Non
 def reservas_list(request):
     """
     GET: Lista reservas con filtros opcionales.
-         /api/reservaciones/?estado=confirmada
-         /api/reservaciones/?fecha=2026-03-14
-         /api/reservaciones/?huesped=5
     POST: Crea una nueva reserva.
     """
     if request.method == 'GET':
@@ -70,6 +67,27 @@ def reservas_list(request):
         serializer = ReservaSerializer(data=request.data)
         if serializer.is_valid():
             reserva = serializer.save(creada_por=request.user)
+            
+            # Asignar tipo_cliente desde la profesión del huésped si no viene
+            if not reserva.tipo_cliente and reserva.huesped.profesion:
+                mapeo = {
+                    'particular': 'particular',
+                    'militar': 'militar',
+                    'politico': 'politico',
+                    'artista': 'artista',
+                    'empresarial': 'empresarial',
+                    'deportista': 'deportista',
+                    'diplomatico': 'diplomatico',
+                    'medico': 'medico',
+                    'religioso': 'religioso',
+                    'turista': 'turista',
+                    'ejecutivo_ventas': 'ejecutivo_ventas',
+                    'comerciante': 'comerciante',
+                }
+                profesion_key = reserva.huesped.profesion.lower()
+                reserva.tipo_cliente = mapeo.get(profesion_key, 'particular')
+                reserva.save()
+            
             registrar_actividad(
                 tipo='reserva_creada',
                 descripcion=f'Reserva creada para {reserva.huesped.nombre_completo}',
@@ -135,7 +153,7 @@ def reserva_detail(request, pk):
 
                 # Si es check-out, marcar habitación como sucia
                 if nuevo_estado == 'check_out':
-                    reserva.habitacion.estado = 'sucia'
+                    reserva.habitacion.estado = 'limpia'
                     reserva.habitacion.save()
 
             return Response(serializer.data)

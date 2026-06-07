@@ -8,11 +8,13 @@ class TipoHabitacion(models.Model):
     Separado de Habitacion para poder reutilizarlo y editarlo sin tocar cada habitación.
     """
     TIPOS = [
-        ('matrimonial', 'Habitación Matrimonial'),
-        ('doble_individual', 'Doble Individual (2 camas individuales)'),
-        ('doble_matrimonial', 'Doble Matrimonial (2 camas matrimoniales)'),
+        ('uni_familiar', 'Uni-Familiar'),
+        ('doble_individual', 'Doble Individual'),
+        ('matrimonial', 'Matrimonial'),
+        ('doble_matrimonial', 'Doble Matrimonial'),
         ('triple_individual', 'Triple Individual'),
         ('suite', 'Suite'),
+        ('queen', 'Queen'),
     ]
 
     codigo = models.CharField(max_length=30, choices=TIPOS, unique=True)

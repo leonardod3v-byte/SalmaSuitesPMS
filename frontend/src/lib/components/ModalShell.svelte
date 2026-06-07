@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import { fade, scale } from 'svelte/transition';
+  import Icon from './Icons.svelte';
 
   let {
     title,
@@ -16,7 +17,6 @@
     children: Snippet;
   } = $props();
 
-  // Cerrar con Escape
   function onKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') onclose();
   }
@@ -24,7 +24,6 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-<!-- Backdrop -->
 <div
   transition:fade={{ duration: 200 }}
   role="dialog"
@@ -33,14 +32,12 @@
   class="fixed inset-0 z-100 flex items-center justify-center p-4 bg-hotel-bg/90 backdrop-blur-md"
   onclick={(e) => { if (e.target === e.currentTarget) onclose(); }}
 >
-  <!-- Card -->
   <div
     transition:scale={{ duration: 250, start: 0.96 }}
     class="w-full {maxWidth} max-h-[90vh] bg-hotel-surface border border-hotel-border rounded-3xl shadow-2xl flex flex-col overflow-hidden"
     role="presentation"
     onclick={(e) => e.stopPropagation()}
   >
-    <!-- Header -->
     <div class="p-6 lg:p-8 border-b border-hotel-border flex justify-between items-center bg-hotel-bg/20 shrink-0">
       <div>
         <h2 class="font-display text-2xl lg:text-3xl italic text-hotel-text-primary tracking-tight">
@@ -57,14 +54,11 @@
         class="w-10 h-10 rounded-full border border-hotel-border flex items-center justify-center hover:bg-hotel-error/10 hover:border-hotel-error/40 hover:text-hotel-error-light text-hotel-text-tertiary transition-all"
         aria-label="Cerrar"
       >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-        </svg>
+        <Icon name="close" class="w-5 h-5" />
       </button>
     </div>
 
-    <!-- Contenido (scrolleable) -->
-    <div class="flex-1 overflow-y-auto p-6 lg:p-8" style="scrollbar-width: thin; scrollbar-color: var(--color-hotel-border) transparent;">
+    <div class="flex-1 overflow-y-auto p-6 lg:p-8 custom-scrollbar">
       {@render children()}
     </div>
   </div>

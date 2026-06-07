@@ -2,7 +2,7 @@
   import type { PageData } from './$types';
   import WelcomeBanner from '$lib/components/WelcomeBanner.svelte';
   import KPICard from '$lib/components/KPICard.svelte';
-  import Loading from '$lib/components/Loading.svelte';
+  import Button from '$lib/components/Button.svelte';
 
   interface Stats {
     ocupacion: { porcentaje: number; ocupadas: number; total: number; trend: { valor: string; subio: boolean } };
@@ -15,7 +15,6 @@
 
   let { data }: { data: PageData } = $props();
 
-  // Datos pre-cargados desde el servidor — sin onMount, sin "Loading..."
   let stats = $derived(data.stats as Stats | null);
   let habitaciones = $derived((data.habitaciones ?? []) as Habitacion[]);
   let actividades = $derived((data.actividades ?? []) as Actividad[]);
@@ -30,12 +29,6 @@
       : habitaciones.filter(h => h.estado === filtroActivo)
   );
 
-  let totalPorEstado = $derived({
-    libre:         habitaciones.filter(h => h.estado === 'libre').length,
-    ocupada:       habitaciones.filter(h => h.estado === 'ocupada').length,
-    mantenimiento: habitaciones.filter(h => h.estado === 'mantenimiento').length,
-  });
-
   const getEstadoClass = (estado: Habitacion['estado']) => {
     const map: Record<string, string> = {
       libre:         'bg-hotel-success/10 border-hotel-success/30 text-hotel-success-light',
@@ -44,6 +37,8 @@
     };
     return map[estado] || 'bg-hotel-surface border-hotel-border text-hotel-text-tertiary';
   };
+
+  const reloadPage = () => window.location.reload();
 </script>
 
 <svelte:head>
@@ -56,7 +51,7 @@
       <p class="text-hotel-error-light font-bold uppercase tracking-widest text-xs mb-4">
         Error al cargar el panel
       </p>
-      <a href="/dashboard" class="btn-gold-outline py-2 px-6 text-xs">Reintentar</a>
+      <Button variant="gold" size="sm" onclick={reloadPage}>Reintentar</Button>
     </div>
   </div>
 {:else}
@@ -70,14 +65,14 @@
         subtitle="{stats?.ocupacion?.ocupadas ?? 0} de {stats?.ocupacion?.total ?? 0} unidades"
         trend={stats?.ocupacion?.trend?.valor}
         trendUp={stats?.ocupacion?.trend?.subio}
-        icon="hotel"
+        iconName="hotel"
         color="gold"
       />
       <KPICard
         title="Check-In Hoy"
         value={stats?.reservas_hoy?.total ?? 0}
         subtitle="{stats?.reservas_hoy?.check_ins_pendientes ?? 0} ingresos pendientes"
-        icon="calendar"
+        iconName="calendar"
         color="success"
       />
       <KPICard
@@ -86,14 +81,14 @@
         subtitle="Flujo de caja del día"
         trend={stats?.ingresos_dia?.trend?.valor}
         trendUp={stats?.ingresos_dia?.trend?.subio}
-        icon="money"
+        iconName="dinero"
         color="gold"
       />
       <KPICard
         title="Clientes VIP"
         value={stats?.vip_hoy?.total ?? 0}
         subtitle="Servicios preferenciales"
-        icon="crown"
+        iconName="corona"
         color="vip"
       />
     </div>
@@ -111,6 +106,8 @@
                 <div
                   class="w-full bg-linear-to-t from-hotel-gold-dark via-hotel-gold to-hotel-gold-light transition-all duration-1000 ease-out"
                   style="height: {val}%"
+                  role="img"
+                  aria-label={`Ocupación ${val} por ciento`}
                 ></div>
               </div>
               <span class="text-[9px] text-hotel-text-tertiary font-black uppercase tracking-tighter transition-colors group-hover:text-hotel-gold">
@@ -123,14 +120,14 @@
 
       <section class="bg-hotel-surface rounded-2xl p-6 border border-hotel-border flex flex-col shadow-hotel-sm">
         <h3 class="font-display text-xl text-hotel-text-primary mb-6 italic">Actividad</h3>
-        <div class="flex-1 space-y-0 overflow-y-auto pr-2 custom-scrollbar max-h-320px">
+        <div class="flex-1 space-y-0 overflow-y-auto pr-2 custom-scrollbar max-h-80">
           {#each actividades as act, i}
             <div class="flex gap-4 group relative pb-6 last:pb-0">
               {#if i !== actividades.length - 1}
-                <div class="absolute left-11px top-7 w-px h-full bg-hotel-border/50 group-hover:bg-hotel-gold/20 transition-colors"></div>
+                <div class="absolute left-[11px] top-7 w-px h-full bg-hotel-border/50 group-hover:bg-hotel-gold/20 transition-colors"></div>
               {/if}
               <div class="relative z-10">
-                <div class="w-22px h-22px rounded-full bg-hotel-bg border border-hotel-gold/30 flex items-center justify-center group-hover:border-hotel-gold transition-all duration-300 shadow-sm">
+                <div class="w-[22px] h-[22px] rounded-full bg-hotel-bg border border-hotel-gold/30 flex items-center justify-center group-hover:border-hotel-gold transition-all duration-300 shadow-sm">
                   <div class="w-1.5 h-1.5 rounded-full bg-hotel-gold/50 group-hover:bg-hotel-gold animate-pulse"></div>
                 </div>
               </div>
@@ -163,7 +160,7 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-6 sm:grid-cols-10 lg:grid-cols-12 xl:grid-cols-15 gap-3">
+      <div class="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-3">
         {#each habitacionesFiltradas as hab}
           <div class="aspect-square rounded-lg border flex items-center justify-center text-[10px] font-black transition-all hover:scale-110 shadow-sm {getEstadoClass(hab.estado)}">
             {hab.num}
@@ -171,28 +168,38 @@
         {/each}
       </div>
 
-
-      <div class="mt-3 pt-6 border-t border-hotel-border/50 flex flex-wrap gap-2">
-        <div class="flex flex-wrap gap-3">
-          {#each [
-            { label: 'Libre', class: 'bg-hotel-success/10 border-hotel-success/30 text-hotel-success-light', dot: 'bg-hotel-success' },
-            { label: 'Ocupada', class: 'bg-hotel-gold/10 border-hotel-gold/30 text-hotel-gold-light', dot: 'bg-hotel-gold' },
-            { label: 'Mantenimiento/Limpieza', class: 'bg-hotel-error/10 border-hotel-error/30 text-hotel-error-light', dot: 'bg-hotel-error' },
-          ] as item}
-            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[10px] font-bold transition-opacity hover:opacity-80 {item.class}">
-              <div class="w-2 h-2 rounded-full {item.dot} animate-pulse-slow"></div>
-                {item.label}
-            </div>
-          {/each}
-        </div>
+      <div class="mt-6 pt-4 border-t border-hotel-border/50 flex flex-wrap gap-3">
+        {#each [
+          { label: 'Libre', class: 'bg-hotel-success/10 border-hotel-success/30 text-hotel-success-light', dot: 'bg-hotel-success' },
+          { label: 'Ocupada', class: 'bg-hotel-gold/10 border-hotel-gold/30 text-hotel-gold-light', dot: 'bg-hotel-gold' },
+          { label: 'Mantenimiento/Limpieza', class: 'bg-hotel-error/10 border-hotel-error/30 text-hotel-error-light', dot: 'bg-hotel-error' },
+        ] as item}
+          <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[10px] font-bold transition-opacity hover:opacity-80 {item.class}">
+            <div class="w-2 h-2 rounded-full {item.dot} animate-pulse"></div>
+            {item.label}
+          </div>
+        {/each}
       </div>
     </section>
   </div>
 {/if}
 
 <style>
-  .custom-scrollbar::-webkit-scrollbar { width: 3px; }
-  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--color-hotel-border); border-radius: 10px; }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--color-hotel-gold); }
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-hotel-border) transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--color-hotel-border);
+    border-radius: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--color-hotel-gold);
+  }
 </style>

@@ -4,10 +4,12 @@
 
   let { 
     type = 'full',
-    message = 'Sincronizando...' 
+    message = 'Sincronizando...',
+    skeletonCount = 4
   }: { 
-    type?: 'full' | 'dashboard',
-    message?: string 
+    type?: 'full' | 'dashboard';
+    message?: string;
+    skeletonCount?: number;
   } = $props();
 </script>
 
@@ -29,7 +31,7 @@
     <Skeleton height="h-32" rounded="rounded-2xl" />
     
     <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-      {#each Array(4) as _}
+      {#each Array(skeletonCount) as _}
         <Skeleton height="h-24" rounded="rounded-xl" />
       {/each}
     </div>

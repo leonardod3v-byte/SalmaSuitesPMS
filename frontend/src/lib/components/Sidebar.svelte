@@ -2,10 +2,8 @@
   import { page } from '$app/stores';
   import { auth } from '$lib/stores/auth';
   import { browser } from '$app/environment';
-  import { icons } from '$lib/components/Icons.svelte';
+  import Icon from '$lib/components/Icons.svelte';
   import { fade } from 'svelte/transition';
-
-  type IconName = keyof typeof icons;
 
   let collapsed = $state(false);
   let mobileOpen = $state(false);
@@ -36,8 +34,9 @@
   type="button"
   onclick={() => (mobileOpen = !mobileOpen)}
   class="lg:hidden fixed top-3 left-3 z-100 w-11 h-11 rounded-xl flex items-center justify-center bg-hotel-surface border border-hotel-border text-hotel-gold shadow-2xl"
+  aria-label="Abrir menú"
 >
-  {@html mobileOpen ? icons.close : icons.menu}
+  <Icon name={mobileOpen ? 'close' : 'menu'} class="w-5 h-5" />
 </button>
 
 {#if mobileOpen}
@@ -52,26 +51,29 @@
 <aside
   class="fixed left-0 top-0 h-full z-90 transition-all duration-300 ease-in-out bg-hotel-bg border-r border-hotel-border flex flex-col
     {mobileOpen ? 'translate-x-0' : '-translate-x-full'} 
-    lg:translate-x-0 {collapsed ? 'w-19' : 'w-64'}" 
+    lg:translate-x-0 {collapsed ? 'w-20' : 'w-64'}" 
 >
   <div class="flex flex-col h-full w-full overflow-x-hidden">
     
     <div class="h-16 flex items-center shrink-0 border-b border-hotel-border px-5">
-      <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 overflow-hidden">
-        <img src="/favicon.svg" alt="Logo SalmaSuites" class="w-full h-full object-contain" />
-      </div>
-      {#if !collapsed}
-        <span transition:fade class="ml-3 font-display font-bold italic text-hotel-text-primary">
-          SalmaSuitesPMS
-        </span>
-      {/if}
+      <a href="/dashboard" data-sveltekit-prefetch class="flex items-center gap-3 w-full">
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 overflow-hidden">
+          <img src="/favicon.svg" alt="Logo SalmaSuites" class="w-full h-full object-contain" />
+        </div>
+        {#if !collapsed}
+          <span transition:fade class="ml-3 font-display font-bold italic text-hotel-text-primary">
+            SalmaSuitesPMS
+          </span>
+        {/if}
+      </a>
     </div>
 
-    <nav class="flex-1 p-3 space-y-1 overflow-y-auto overflow-x-hidden select-none">
+    <nav class="flex-1 p-3 space-y-1 overflow-y-auto overflow-x-hidden select-none custom-scrollbar">
       {#each menuItems as item (item.key)}
         {#if !item.adminOnly || ($auth.user?.role === 'admin')}
           <a
             href={item.href}
+            data-sveltekit-prefetch
             onclick={() => (mobileOpen = false)}
             class="flex items-center gap-4 px-3 py-3 rounded-xl transition-all duration-200 group relative
               {$page.url.pathname === item.href 
@@ -79,23 +81,14 @@
                 : 'text-hotel-text-secondary hover:bg-hotel-surface hover:text-hotel-text-primary border-transparent'} border"
           >
             <div class="shrink-0 w-6 h-6 flex items-center justify-center">
-              {@html icons[item.key]}
+              <Icon name={item.key} class="w-5 h-5" />
             </div>
-
             {#if !collapsed}
               <span class="font-medium text-sm truncate whitespace-nowrap overflow-hidden">
                 {item.label}
               </span>
             {/if}
-
-            {#if collapsed}
-              <div class="absolute left-16 px-3 py-2 rounded-lg text-[10px] font-bold whitespace-nowrap
-                          invisible group-hover:visible opacity-0 group-hover:opacity-100 
-                          translate-x-2.5 group-hover:translate-x-0 transition-all z-110
-                          bg-hotel-surface border border-hotel-border text-hotel-gold shadow-2xl uppercase tracking-widest">
-                {item.label}
-              </div>
-            {/if}
+            <!-- tooltip cuando colapsado... -->
           </a>
         {/if}
       {/each}
@@ -107,7 +100,9 @@
         onclick={logout}
         class="flex items-center gap-4 px-3 py-3 rounded-xl transition-all w-full text-hotel-error hover:bg-hotel-error/10"
       >
-        <div class="shrink-0 w-6 h-6 flex items-center justify-center">{@html icons.logout}</div>
+        <div class="shrink-0 w-6 h-6 flex items-center justify-center">
+          <Icon name="logout" class="w-5 h-5" />
+        </div>
         {#if !collapsed}
           <span class="font-bold text-xs uppercase tracking-wider">Cerrar Sesión</span>
         {/if}
@@ -119,11 +114,32 @@
     type="button"
     onclick={toggle}
     class="hidden lg:flex absolute -right-3 top-20 w-6 h-6 rounded-full
-           items-center justify-center shadow-xl hover:scale-110 transition-transform z-100 
-           bg-hotel-gold text-hotel-bg border-2 border-hotel-bg"
+          items-center justify-center shadow-xl hover:scale-110 transition-transform z-100 
+          bg-hotel-gold text-hotel-bg border-2 border-hotel-bg"
+    aria-label={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
   >
     <div class="transition-transform duration-300" style="transform: rotate({collapsed ? '180deg' : '0deg'})">
-      {@html icons.flecha}
+      <Icon name="flecha" class="w-3 h-3" />
     </div>
   </button>
 </aside>
+
+<style>
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-hotel-border) transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--color-hotel-border);
+    border-radius: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--color-hotel-gold);
+  }
+</style>

@@ -22,6 +22,17 @@ class Huesped(models.Model):
     email = models.EmailField(blank=True)
     es_vip = models.BooleanField(default=False)
     notas = models.TextField(blank=True)
+    procedencia = models.CharField(max_length=100, blank=True, null=True)
+    profesion = models.CharField(max_length=100, blank=True, null=True)
+    edad = models.PositiveIntegerField(blank=True, null=True)
+    nacionalidad = models.CharField(max_length=50, blank=True, null=True)
+    estado_civil = models.CharField(
+    max_length=20,
+    choices=[('soltero','Soltero'),('casado','Casado'),('divorciado','Divorciado'),('viudo','Viudo')],
+    blank=True, null=True
+    )
+    fecha_nacimiento = models.DateField(blank=True, null=True)
+    telefono_contacto = models.CharField(max_length=20, blank=True, null=True)
 
     # RF04: Acompañantes guardados como lista JSON
     # Formato: [{"nombre": "Juan", "documento": "V-12345678", "edad": 30}, ...]

@@ -17,9 +17,11 @@ class Reserva(models.Model):
         ('empresarial', 'Empresarial'),
         ('deportista',  'Deportista'),
         ('diplomatico', 'Diplomático'),
-        ('medico',      'Personal Médico'),
+        ('medico',      'Médico'),
         ('religioso',   'Religioso'),
         ('turista',     'Turista / Agencia'),
+        ('ejecutivo_ventas', 'Ejecutivo de Ventas'),
+        ('comerciante', 'Comerciante'),
     ]
 
 
@@ -33,13 +35,9 @@ class Reserva(models.Model):
     ]
 
     METODOS_PAGO = [
-        ('efectivo_usd', 'Efectivo USD'),
-        ('efectivo_ves', 'Efectivo Bs.'),
-        ('transferencia', 'Transferencia'),
+        ('efectivo', 'Efectivo'),
         ('tarjeta', 'Tarjeta'),
         ('pago_movil', 'Pago Móvil'),
-        ('zelle', 'Zelle'),
-        ('binance', 'Binance Pay'),
     ]
 
     # Relaciones principales
@@ -71,6 +69,14 @@ class Reserva(models.Model):
     referencia_pago = models.CharField(max_length=100, blank=True)
     monto_total = models.DecimalField(max_digits=10, decimal_places=2)
     monto_pagado = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    modalidad_pago = models.CharField(
+    max_length=20,
+    choices=[('contado','Contado'),('abono','Abono'),('credito','Crédito')],
+    default='contado'
+    )
+    requiere_factura = models.BooleanField(default=False)
+    datos_fiscales = models.JSONField(default=dict, blank=True)
 
     # RF05: Factura Seniat
     requiere_factura_seniat = models.BooleanField(default=False)

@@ -1,7 +1,9 @@
 <script lang="ts">
   import type { HTMLInputAttributes } from 'svelte/elements';
 
-  // ── Props ──────────────────────────────────────────────────────────────────
+  let nextId = 0;
+  const getUniqueId = () => `input-${nextId++}`;
+
   let {
     type = 'text',
     value = $bindable(''),
@@ -10,19 +12,34 @@
     error = $bindable(''),
     required = false,
     autocomplete = undefined,
-    id = `input-${Math.random().toString(36).slice(2, 10)}`,
+    id = getUniqueId(),
+    oninput = undefined,
   }: {
     type?: string;
-    value?: string;
+    value?: string | number;
     placeholder?: string;
     label?: string;
     error?: string;
     required?: boolean;
     autocomplete?: HTMLInputAttributes['autocomplete'];
     id?: string;
+    oninput?: (e: Event) => void;
   } = $props();
 
-  const handleInput = () => { if (error) error = ''; };
+  let numericValue = $state(value);
+  // svelte-ignore state_referenced_locally
+  const isNumber = type === 'number';
+
+  function handleInput(e: Event) {
+    if (error) error = '';
+    if (isNumber) {
+      const target = e.currentTarget as HTMLInputElement;
+      numericValue = target.valueAsNumber;
+      value = isNaN(numericValue) ? '' : numericValue;
+    }
+    // Propagar el evento al padre si existe
+    if (oninput) oninput(e);
+  }
 </script>
 
 <div class="space-y-2 w-full">
@@ -36,23 +53,43 @@
   {/if}
 
   <div class="relative group">
-    <input
-      {id}
-      {type}
-      {placeholder}
-      {required}
-      {autocomplete}
-      bind:value
-      oninput={handleInput}
-      class="
-        w-full rounded-lg px-4 py-3.5 text-sm transition-all duration-200
-        bg-hotel-bg text-hotel-text-primary outline-none border
-        placeholder:text-hotel-text-tertiary
-        {error 
-          ? 'border-hotel-error focus:ring-4 focus:ring-hotel-error/15' 
-          : 'border-hotel-border focus:border-hotel-gold focus:ring-4 focus:ring-hotel-gold/10 hover:border-hotel-gold-dark'}
-      "
-    />
+    {#if isNumber}
+      <input
+        {id}
+        type="number"
+        {placeholder}
+        {required}
+        {autocomplete}
+        bind:value={numericValue}
+        oninput={handleInput}
+        class="
+          w-full rounded-lg px-4 py-3.5 text-sm transition-all duration-200
+          bg-hotel-bg text-hotel-text-primary outline-none border
+          placeholder:text-hotel-text-tertiary
+          {error 
+            ? 'border-hotel-error focus:ring-4 focus:ring-hotel-error/15' 
+            : 'border-hotel-border focus:border-hotel-gold focus:ring-4 focus:ring-hotel-gold/10 hover:border-hotel-gold-dark'}
+        "
+      />
+    {:else}
+      <input
+        {id}
+        {type}
+        {placeholder}
+        {required}
+        {autocomplete}
+        bind:value
+        oninput={handleInput}
+        class="
+          w-full rounded-lg px-4 py-3.5 text-sm transition-all duration-200
+          bg-hotel-bg text-hotel-text-primary outline-none border
+          placeholder:text-hotel-text-tertiary
+          {error 
+            ? 'border-hotel-error focus:ring-4 focus:ring-hotel-error/15' 
+            : 'border-hotel-border focus:border-hotel-gold focus:ring-4 focus:ring-hotel-gold/10 hover:border-hotel-gold-dark'}
+        "
+      />
+    {/if}
 
     {#if error}
       <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-hotel-error">

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { TIPOS_CLIENTE, type ReservaListItem } from '$lib/services/reservaciones';
+  import Icon from '$lib/components/Icons.svelte';
 
   let { reservas, habitaciones, semanaInicio, onCeldaClick }: {
     reservas:      ReservaListItem[];
@@ -11,10 +12,8 @@
   const DIAS_ES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
   const hoy = new Date().toISOString().split('T')[0];
 
-  // Auxiliar para normalizar fechas sin desfases de zona horaria
   const toISO = (d: Date) => d.toISOString().split('T')[0];
 
-  // 1. Generar los 7 días (Cálculo derivado puro)
   const diasSemana = $derived(
     Array.from({ length: 7 }, (_, i) => {
       const d = new Date(semanaInicio);
@@ -23,13 +22,11 @@
     })
   );
 
-  // 2. Mapa de indexación ultra-rápida: "habitacion-fecha" -> Reserva
   const mapaReservas = $derived.by(() => {
     const map = new Map<string, ReservaListItem>();
     reservas.forEach(r => {
-      let current = new Date(r.fecha_entrada + 'T12:00:00'); // Mid-day para evitar saltos
+      let current = new Date(r.fecha_entrada + 'T12:00:00');
       const end = new Date(r.fecha_salida + 'T12:00:00');
-      
       while (current < end) {
         map.set(`${r.habitacion_numero}-${toISO(current)}`, r);
         current.setDate(current.getDate() + 1);
@@ -38,7 +35,6 @@
     return map;
   });
 
-  // 3. Agrupación de habitaciones por piso
   const pisos = $derived(
     habitaciones.reduce((acc, h) => {
       if (!acc.has(h.piso)) acc.set(h.piso, []);
@@ -49,13 +45,11 @@
 
   const fmtCabecera = (d: Date) => 
     d.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit' });
-
 </script>
 
-<div class="overflow-hidden rounded-2rem border border-hotel-border bg-hotel-surface shadow-hotel-lg">
+<div class="overflow-hidden rounded-2xl border border-hotel-border bg-hotel-surface shadow-hotel-lg">
   <div class="overflow-x-auto custom-scrollbar">
-    <table class="w-full border-collapse text-xs min-w-900px">
-      
+    <table class="w-full border-collapse text-xs min-w-[900px]">
       <thead>
         <tr class="bg-hotel-bg/50 backdrop-blur-sm">
           <th class="sticky left-0 z-20 bg-hotel-bg border-b border-r border-hotel-border px-4 py-4 text-left w-44 shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">
@@ -67,13 +61,13 @@
 
           {#each diasSemana as dia, i}
             {@const isToday = toISO(dia) === hoy}
-            <th class="border-b border-hotel-border px-2 py-4 text-center min-w-100px transition-colors {isToday ? 'bg-hotel-gold/10' : ''}">
+            <th class="border-b border-hotel-border px-2 py-4 text-center min-w-[100px] transition-colors {isToday ? 'bg-hotel-gold/10' : ''}">
               <p class="font-black uppercase tracking-widest {isToday ? 'text-hotel-gold' : 'text-hotel-text-secondary'}">{DIAS_ES[i]}</p>
               <p class="text-hotel-text-tertiary font-mono text-[10px]">{fmtCabecera(dia)}</p>
             </th>
           {/each}
 
-          <th class="border-b border-l border-hotel-border px-4 py-4 text-left min-w-180px bg-hotel-bg/30">
+          <th class="border-b border-l border-hotel-border px-4 py-4 text-left min-w-[180px] bg-hotel-bg/30">
             <p class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-text-tertiary">Huésped Titular</p>
           </th>
           <th class="border-b border-l border-hotel-border px-4 py-4 text-center w-20 bg-hotel-bg/30">
@@ -85,7 +79,7 @@
       <tbody>
         {#each [...pisos.entries()].sort((a, b) => a[0] - b[0]) as [piso, habs]}
           <tr class="select-none">
-            <td colspan={10} class="bg-hotel-bg/80 px-4 py-1.5 text-[9px] font-black uppercase tracking-[0.3em] text-hotel-gold/70 border-y border-hotel-border/50">
+            <td colspan="10" class="bg-hotel-bg/80 px-4 py-1.5 text-[9px] font-black uppercase tracking-[0.3em] text-hotel-gold/70 border-y border-hotel-border/50">
               Nivel {piso} — Planta {piso === 1 ? 'Principal' : 'Superior'}
             </td>
           </tr>
@@ -95,7 +89,6 @@
             {@const pReserva = rSemana.find(r => r)}
 
             <tr class="group hover:bg-hotel-surface-hover/40 transition-colors border-b border-hotel-border/20">
-              
               <td class="sticky left-0 z-10 bg-hotel-surface group-hover:bg-hotel-bg border-r border-hotel-border px-4 py-3 shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)] transition-colors">
                 <p class="font-display font-black italic text-base text-hotel-text-primary group-hover:text-hotel-gold transition-colors">
                   {hab.numero}
@@ -121,9 +114,9 @@
                         style="background: {config?.bg}; border-color: {config?.color}; color: {config?.text}"
                       >
                         {#if isStart}
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                          <Icon name="arrow-right" class="w-4 h-4" />
                         {:else if isEnd}
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                          <Icon name="check" class="w-4 h-4" />
                         {:else}
                           <div class="w-2.5 h-2.5 rounded-full" style="background: {config?.text}"></div>
                         {/if}
@@ -137,7 +130,7 @@
 
               <td class="border-l border-hotel-border/40 px-4 py-2 bg-hotel-bg/10">
                 {#if pReserva}
-                  <p class="text-[11px] font-black text-hotel-text-primary truncate max-w-160px uppercase">{pReserva.huesped_nombre}</p>
+                  <p class="text-[11px] font-black text-hotel-text-primary truncate max-w-[160px] uppercase">{pReserva.huesped_nombre}</p>
                   <p class="text-[9px] font-mono text-hotel-text-tertiary">{pReserva.huesped_documento}</p>
                 {/if}
               </td>

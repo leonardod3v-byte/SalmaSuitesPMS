@@ -1,14 +1,15 @@
 <script lang="ts">
   import { type HuespedListItem } from '$lib/services/huespedes';
   import VIPToggle from './VIPToggle.svelte';
+  import Button from '$lib/components/Button.svelte';
+  import Icon from '$lib/components/Icons.svelte';
 
   let { huespedes, onVipToggled, onVerDetalle }: {
-    huespedes:    HuespedListItem[];
+    huespedes: HuespedListItem[];
     onVipToggled: (id: number, nuevoEstado: boolean) => void;
     onVerDetalle: (h: HuespedListItem) => void;
   } = $props();
 
-  // Formateador Intl reutilizable (más eficiente que crear un Date en cada render)
   const df = new Intl.DateTimeFormat('es-VE', { day: '2-digit', month: 'short', year: 'numeric' });
 </script>
 
@@ -34,9 +35,7 @@
 
 {#if huespedes.length === 0}
   <div class="py-24 text-center border border-dashed border-hotel-border rounded-2xl bg-hotel-surface/30">
-    <svg class="w-12 h-12 mx-auto mb-4 text-hotel-text-tertiary/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
-    </svg>
+    <Icon name="user" class="w-12 h-12 mx-auto mb-4 text-hotel-text-tertiary/50" />
     <p class="text-sm font-display italic text-hotel-text-tertiary">No hay huéspedes registrados en esta categoría</p>
   </div>
 {:else}
@@ -57,7 +56,7 @@
             <td class="px-5 py-4">
               <div class="text-[11px] leading-relaxed">
                 <p class="text-hotel-text-secondary font-medium">{h.telefono || '—'}</p>
-                <p class="text-hotel-text-tertiary truncate max-w-150px">{h.email || ''}</p>
+                <p class="text-hotel-text-tertiary truncate max-w-[150px]">{h.email || ''}</p>
               </div>
             </td>
             <td class="px-5 py-4">
@@ -67,9 +66,9 @@
               {df.format(new Date(h.created_at))}
             </td>
             <td class="px-5 py-4 text-right">
-              <button onclick={() => onVerDetalle(h)} class="btn-ghost text-[10px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all">
+              <Button variant="ghost" size="sm" onclick={() => onVerDetalle(h)}>
                 Detalles
-              </button>
+              </Button>
             </td>
           </tr>
         {/each}

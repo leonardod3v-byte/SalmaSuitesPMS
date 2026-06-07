@@ -3,16 +3,17 @@
   import { auth } from '$lib/stores/auth';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import ButtonGold from '$lib/components/ButtonGold.svelte';
+  import Button from '$lib/components/Button.svelte';
   import InputHotel from '$lib/components/InputHotel.svelte';
   import CardHotel from '$lib/components/CardHotel.svelte';
+  import Icon from '$lib/components/Icons.svelte';
 
-  // -- Estado con Runas --
   let username = $state('');
   let password = $state('');
   let error = $state('');
   let loading = $state(false);
   let successMsg = $state('');
+  let keepLoggedIn = $state(false);
   let mounted = $state(false);
 
   onMount(() => {
@@ -22,7 +23,6 @@
     }
   });
 
-  // SOLUCIÓN ERROR 1: Tipamos el evento como 'SubmitEvent'
   async function handleSubmit(e: SubmitEvent) {
     e.preventDefault();
     loading = true;
@@ -34,7 +34,6 @@
       sessionStorage.setItem('justLoggedIn', 'true');
       goto('/dashboard', { replaceState: true });
     } catch (err: unknown) {
-      // SOLUCIÓN ERROR 2: Verificamos si err es una instancia de Error
       if (err instanceof Error) {
         error = err.message;
       } else {
@@ -58,18 +57,15 @@
 
   <div class="absolute inset-0 pointer-events-none opacity-20 
     bg-[linear-gradient(var(--color-hotel-gold)_1px,transparent_1px),linear-gradient(90deg,var(--color-hotel-gold)_1px,transparent_1px)]
-    bg-size[60px_60px] mask-[radial-gradient(ellipse_at_center,black_20%,transparent_80%)]">
+    bg-size-[60px_60px] mask-[radial-gradient(ellipse_at_center,black_20%,transparent_80%)]">
   </div>
 
   <div class="relative w-full max-w-md transition-opacity duration-500 {mounted ? 'opacity-100' : 'opacity-0'}">
     
-    <div class="flex items-center justify-center gap-4 mb-10">
-      <div class="flex items-center justify-center w-14 h-14 rounded-2xl bg-linear-to-br from-hotel-gold to-hotel-gold-dark shadow-hotel-gold">
-        <svg class="w-8 h-8 text-hotel-bg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-        </svg>
+    <div class="flex items-center justify-center gap-2 mb-10">
+      <div class="flex items-center justify-center w-13 h-13">
+        <img src="/favicon.svg" alt="Logo SalmaSuites" class="w-full h-full object-contain" />
       </div>
-
       <div class="space-y-0.5">
         <h1 class="font-display text-4xl font-bold tracking-tighter text-hotel-text-primary">
           SalmaSuites<span class="text-hotel-gold">VIP</span>
@@ -89,7 +85,7 @@
 
         {#if successMsg}
           <div class="flex items-center gap-3 text-sm rounded-xl px-4 py-3 bg-hotel-success/10 border border-hotel-success/20 text-hotel-success-light animate-in zoom-in-95 duration-300">
-            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            <Icon name="check" class="w-5 h-5 shrink-0" />
             {successMsg}
           </div>
         {/if}
@@ -115,7 +111,7 @@
 
         <div class="flex items-center justify-between text-xs">
           <label class="flex items-center gap-2 cursor-pointer group text-hotel-text-secondary hover:text-hotel-gold transition-colors">
-            <input type="checkbox" class="w-4 h-4 rounded border-hotel-border bg-hotel-bg text-hotel-gold focus:ring-hotel-gold" />
+            <input type="checkbox" bind:checked={keepLoggedIn} class="w-4 h-4 rounded border-hotel-border bg-hotel-bg text-hotel-gold focus:ring-hotel-gold" />
             Mantener sesión
           </label>
           <a href="/recuperar" class="font-bold text-hotel-gold hover:text-hotel-gold-light transition-colors">
@@ -123,14 +119,14 @@
           </a>
         </div>
 
-        <ButtonGold type="submit" {loading} fullWidth>
+        <Button type="submit" variant="gold" fullWidth loading={loading}>
           Acceder al Panel
-        </ButtonGold>
+        </Button>
       </form>
     </CardHotel>
 
     <footer class="mt-8 text-center space-y-2">
-      <p class="text-[10px] text-hotel-text-tertiary font-medium uppercase tracking-widset">
+      <p class="text-[10px] text-hotel-text-tertiary font-medium uppercase tracking-widest">
         © 2026 Salma Suite VIP · Solo personal autorizado.
       </p>
     </footer>

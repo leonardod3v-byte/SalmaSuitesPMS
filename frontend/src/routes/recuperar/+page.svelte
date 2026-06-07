@@ -1,13 +1,12 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import ButtonGold from '$lib/components/ButtonGold.svelte';
+  import Button from '$lib/components/Button.svelte';
   import InputHotel from '$lib/components/InputHotel.svelte';
   import CardHotel from '$lib/components/CardHotel.svelte';
+  import Icon from '$lib/components/Icons.svelte';
 
-  // -- Constantes --
   const API_URL = 'http://localhost:8000/api';
 
-  // -- Estado con Runas (Svelte 5) --
   let step = $state(1);
   let email = $state('');
   let code = $state('');
@@ -18,20 +17,17 @@
   let loading = $state(false);
   let tokens = $state<{ access: string; refresh: string } | null>(null);
 
-  // -- Tipado del Helper Fetch --
   async function publicPost(endpoint: string, body: object, extraHeaders: Record<string, string> = {}) {
     const res = await fetch(`${API_URL}${endpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...extraHeaders },
       body: JSON.stringify(body)
     });
-    
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || data.detail || `Error ${res.status}`);
     return data;
   }
 
-  // -- Lógica de Fuerza de Contraseña (Derivada) --
   let passwordStrength = $derived(getPasswordStrength(newPassword));
   
   const strengthConfig = [
@@ -54,7 +50,6 @@
     return score;
   }
 
-  // -- Manejadores de Eventos Tipados --
   async function handleRequestCode(e: SubmitEvent) {
     e.preventDefault();
     loading = true; error = ''; message = '';
@@ -71,7 +66,7 @@
 
   async function handleVerifyCode(e: SubmitEvent) {
     e.preventDefault();
-    loading = true; error = '';
+    loading = true; error = ''; message = '';
     try {
       const data = await publicPost('/auth/password-reset/verify/', { email, code });
       if (!data.valid) throw new Error('El código no es válido');
@@ -117,15 +112,13 @@
   
   <div class="absolute inset-0 pointer-events-none opacity-20 
     bg-[linear-gradient(var(--color-hotel-gold)_1px,transparent_1px),linear-gradient(90deg,var(--color-hotel-gold)_1px,transparent_1px)]
-    bg-size[60px_60px] mask-[radial-gradient(ellipse_at_center,black_20%,transparent_80%)]">
+    bg-size-[60px_60px] mask-[radial-gradient(ellipse_at_center,black_20%,transparent_80%)]">
   </div>
 
   <div class="relative w-full max-w-md">
     <div class="flex items-center justify-center gap-4 mb-10">
       <div class="flex items-center justify-center w-14 h-14 rounded-2xl bg-linear-to-br from-hotel-gold to-hotel-gold-dark shadow-hotel-gold">
-        <svg class="w-8 h-8 text-hotel-bg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
-        </svg>
+        <Icon name="key" class="w-8 h-8 text-hotel-bg" />
       </div>
       <div class="space-y-0.5">
         <h1 class="font-display text-3xl font-bold tracking-tighter text-hotel-text-primary uppercase">Recuperar Acceso</h1>
@@ -144,18 +137,22 @@
           </p>
         </header>
 
+        {#if message}
+          <div class="flex items-center gap-3 text-sm rounded-xl px-4 py-3 bg-hotel-success/10 border border-hotel-success/20 text-hotel-success-light animate-in zoom-in-95 duration-300">
+            <Icon name="check" class="w-5 h-5 shrink-0" />
+            {message}
+          </div>
+        {/if}
+
         {#if step === 1}
           <form onsubmit={handleRequestCode} class="space-y-6">
             <InputHotel type="email" label="Correo electrónico" placeholder="usuario@gmail.com" bind:value={email} error={error} required />
-            <ButtonGold type="submit" {loading} fullWidth>Enviar Código</ButtonGold>
+            <Button type="submit" variant="gold" fullWidth loading={loading}>Enviar Código</Button>
           </form>
         {:else if step === 2}
           <form onsubmit={handleVerifyCode} class="space-y-6">
             <div class="space-y-3">
-              <label 
-                for="otp-code" 
-                class="text-xs font-bold uppercase tracking-widest text-hotel-text-tertiary px-1"
-              >
+              <label for="otp-code" class="text-xs font-bold uppercase tracking-widest text-hotel-text-tertiary px-1">
                 Código de 6 dígitos
               </label>
               <input 
@@ -166,11 +163,12 @@
                 placeholder="000000" 
                 maxlength="6" 
                 required 
+                aria-label="Código de verificación de 6 dígitos"
                 class="w-full bg-hotel-bg border border-hotel-border rounded-xl py-4 text-center text-3xl tracking-[0.5em] font-bold text-hotel-gold focus:border-hotel-gold focus:ring-4 focus:ring-hotel-gold/10 transition-all outline-none" 
               />
             </div>
             {#if error}<p class="text-xs text-hotel-error-light bg-hotel-error/10 p-3 rounded-lg border border-hotel-error/20 text-center italic">{error}</p>{/if}
-            <ButtonGold type="submit" {loading} fullWidth>Validar Identidad</ButtonGold>
+            <Button type="submit" variant="gold" fullWidth loading={loading}>Validar Identidad</Button>
             <button type="button" onclick={() => step = 1} class="w-full text-[10px] uppercase font-black text-hotel-text-tertiary hover:text-hotel-gold transition-colors tracking-widest">¿No recibió el correo? Reintentar</button>
           </form>
         {:else}
@@ -191,7 +189,7 @@
             {/if}
 
             <InputHotel type="password" label="Confirmar Contraseña" bind:value={confirmPassword} error={error} required />
-            <ButtonGold type="submit" {loading} fullWidth>Actualizar Llave</ButtonGold>
+            <Button type="submit" variant="gold" fullWidth loading={loading}>Actualizar Llave</Button>
           </form>
         {/if}
 

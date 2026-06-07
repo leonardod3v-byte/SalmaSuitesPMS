@@ -11,16 +11,15 @@ from .serializers import PagoSerializer, CierreCajaSerializer
 from apps.reservaciones.models import Reserva
 from apps.reservaciones.views import registrar_actividad
 
-
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 @csrf_exempt
 def pagos_list(request):
     """
     GET: Lista pagos con filtros opcionales.
-         /api/pagos/?metodo=zelle
-         /api/pagos/?reserva=5
-         /api/pagos/?fecha=2026-03-14
+        /api/pagos/?metodo=zelle
+        /api/pagos/?reserva=5
+        /api/pagos/?fecha=2026-03-14
     POST: Registra un nuevo pago para una reserva.
     """
     if request.method == 'GET':
@@ -171,3 +170,35 @@ def historial_cierres(request):
 
     serializer = CierreCajaSerializer(cierres, many=True)
     return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def registrar_pago(request):
+    reserva_id = request.data.get('reserva')
+    monto = request.data.get('monto')
+    metodo = request.data.get('metodo')
+    referencia = request.data.get('referencia', '')
+
+    try:
+        reserva = Reserva.objects.get(id=reserva_id)
+    except Reserva.DoesNotExist:
+        return Response({'error': 'Reserva no encontrada'}, status=404)
+
+    if monto <= 0:
+        return Response({'error': 'Monto inválido'}, status=400)
+
+    # Crear registro de pago
+    pago = Pago.objects.create(
+        reserva=reserva,
+        monto=monto,
+        metodo=metodo,
+        referencia=referencia,
+        registrado_por=request.user
+    )
+
+    # Actualizar monto_pagado de la reserva
+    reserva.monto_pagado += monto
+    reserva.save()
+
+    return Response({'message': 'Pago registrado', 'nuevo_saldo': reserva.saldo_pendiente})

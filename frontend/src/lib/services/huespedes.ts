@@ -65,4 +65,8 @@ export const huespedesApi = {
         apiFetch<{ encontrado: boolean; huesped?: Huesped }>(
             `/huespedes/buscar/?documento=${encodeURIComponent(documento)}`
         ),
+
+    search: (query: string) => {
+        return apiFetch<HuespedListItem[]>(`/huespedes/?search=${encodeURIComponent(query)}`);
+},
 };

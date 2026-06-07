@@ -38,6 +38,7 @@ class ReservaListSerializer(serializers.ModelSerializer):
             'huesped_nombre', 'huesped_documento',
             'habitacion_numero', 'monto_total', 'monto_pagado',
             'saldo_pendiente', 'metodo_pago', 'created_at', 'tipo_cliente',
+            'modalidad_pago', 'requiere_factura'
         ]
 
 
@@ -62,11 +63,43 @@ class ReservaSerializer(serializers.ModelSerializer):
             'metodo_pago', 'referencia_pago',
             'monto_total', 'monto_pagado', 'saldo_pendiente',
             'requiere_factura_seniat', 'datos_factura',
+            'modalidad_pago', 'requiere_factura', 'datos_fiscales',
+            'tipo_cliente',
             'no_show_motivo', 'no_show_fecha',
             'notas', 'consumos', 'creada_por_nombre',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at']
+    """
+    Versión completa con todos los datos y consumos anidados.
+    """
+    huesped_data = HuespedListSerializer(source='huesped', read_only=True)
+    habitacion_data = HabitacionSerializer(source='habitacion', read_only=True)
+    consumos = ConsumoSerializer(many=True, read_only=True)
+    saldo_pendiente = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    noches = serializers.IntegerField(read_only=True)
+    creada_por_nombre = serializers.CharField(source='creada_por.username', read_only=True)
+    tipo_cliente = serializers.CharField(required=False, allow_blank=True)
+
+    class Meta:
+        model = Reserva
+        fields = [
+            'id', 'estado', 'fecha_entrada', 'fecha_salida',
+            'hora_check_in', 'hora_check_out', 'noches',
+            'huesped', 'huesped_data',
+            'habitacion', 'habitacion_data', 'habitacion_original',
+            'metodo_pago', 'referencia_pago',
+            'monto_total', 'monto_pagado', 'saldo_pendiente',
+            'requiere_factura_seniat', 'datos_factura',
+            'modalidad_pago', 'requiere_factura', 'datos_fiscales',
+            'no_show_motivo', 'no_show_fecha',
+            'notas', 'consumos', 'creada_por_nombre',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+        extra_kwargs = {
+        'tipo_cliente': {'required': False, 'allow_blank': True}
+        }
 
 
 class ActividadSerializer(serializers.ModelSerializer):
@@ -79,3 +112,16 @@ class ActividadSerializer(serializers.ModelSerializer):
             'id', 'tipo', 'descripcion', 'detalle',
             'habitacion_numero', 'usuario_nombre', 'created_at'
         ]
+
+def validate(self, data):
+    modalidad = data.get('modalidad_pago', self.instance.modalidad_pago if self.instance else 'contado')
+    monto_total = data.get('monto_total', self.instance.monto_total if self.instance else 0)
+    monto_pagado = data.get('monto_pagado', self.instance.monto_pagado if self.instance else 0)
+
+    if modalidad == 'contado' and monto_pagado != monto_total:
+        raise serializers.ValidationError({"monto_pagado": "En pago de contado, el abono debe ser igual al total."})
+    if modalidad == 'abono' and (monto_pagado <= 0 or monto_pagado >= monto_total):
+        raise serializers.ValidationError({"monto_pagado": "En abono, el pago inicial debe ser mayor que 0 y menor que el total."})
+    if modalidad == 'credito' and monto_pagado != 0:
+        raise serializers.ValidationError({"monto_pagado": "En crédito, no se debe registrar pago inicial."})
+    return data

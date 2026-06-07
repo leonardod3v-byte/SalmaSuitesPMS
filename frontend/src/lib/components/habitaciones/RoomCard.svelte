@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Icon from '$lib/components/Icons.svelte';
+
   let { hab, onclick } = $props();
 
   const ESTADOS = {
@@ -21,17 +23,15 @@
   {onclick}
   aria-label="Habitación {hab.numero}"
 >
-  <!-- Contenedor de Imagen -->
   <div class="relative h-32 w-full overflow-hidden">
-  <img 
-    src={roomImage} 
-    alt="Habitación {tipoLabel}" 
-    loading="lazy" 
-    class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-  />
-    <div class="absolute inset-0 bg-linear-to-t from-hotel-black-deep/80 to-transparent"></div>
+    <img 
+      src={roomImage} 
+      alt="Habitación {tipoLabel}" 
+      loading="lazy" 
+      class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+    />
+    <div class="absolute inset-0 bg-linear-to-t from-black/80 to-transparent"></div>
     
-    <!-- Badge de Estado Flotante -->
     <div 
       class="absolute top-3 right-3 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider backdrop-blur-md border"
       style="background: {cfg.bg}; color: {cfg.color}; border-color: {cfg.color}44"
@@ -39,29 +39,29 @@
       {cfg.label}
     </div>
 
-    <!-- Número de habitación -->
     <div class="absolute bottom-2 left-3">
-      <span class="text-2xl font-display font-bold text-hotel-text-primary italic">#{hab.numero}</span>
+      <span class="text-2xl font-display font-bold text-white italic">#{hab.numero}</span>
     </div>
   </div>
 
-  <!-- Contenido -->
   <div class="p-3 flex flex-col gap-2">
     <div>
       <h3 class="text-xs font-bold text-hotel-text-secondary uppercase tracking-widest">{tipoLabel}</h3>
       <p class="text-[14px] text-hotel-text-tertiary">Piso {hab.piso}</p>
+      <p class="text-sm font-bold text-hotel-gold mt-1">
+        ${parseFloat(hab.tipo_precio).toFixed(2)} / noche
+      </p>
     </div>
 
-    <!-- Footer -->
     <div class="flex gap-2 pt-2 border-t border-hotel-border/50">
       {#if hab.tiene_minibar}
         <div class="text-hotel-text-tertiary group-hover:text-hotel-gold transition-colors" title="Minibar">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+          <Icon name="minibar" class="w-3.5 h-3.5" />
         </div>
       {/if}
       {#if hab.qr_code}
         <div class="text-hotel-text-tertiary group-hover:text-hotel-gold transition-colors" title="QR Smart Acceso">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h3m-3 3h3m7-7v3m0 0h-3m0 9v-3m-7 3h10"/></svg>
+          <Icon name="qr" class="w-3.5 h-3.5" />
         </div>
       {/if}
     </div>
