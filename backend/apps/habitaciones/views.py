@@ -1,171 +1,90 @@
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, parser_classes
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
-from django.views.decorators.csrf import csrf_exempt
-from django.db import transaction
-
-from .models import TipoHabitacion, Habitacion, HistorialEstadoHabitacion
-from .serializers import TipoHabitacionSerializer, HabitacionSerializer, HistorialSerializer
-from utils import paginar_queryset_funcion
+from django.shortcuts import get_object_or_404
+from .models import Habitacion
+from .serializers import HabitacionSerializer, CambioEstadoSerializer
+from . import services
 
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
-@csrf_exempt
-def habitaciones_list(request):
-    """
-    GET: Lista todas las habitaciones con filtros y paginación optimizada.
-    POST: Crea una nueva habitación (solo admin).
-    """
+@parser_classes([JSONParser, FormParser, MultiPartParser])
+def lista_habitaciones(request):
     if request.method == 'GET':
-        # SQL N+1 Blindado: select_related para traer los tipos en un solo JOIN
-        qs = Habitacion.objects.select_related('tipo').all().order_by('numero')
-
         estado = request.query_params.get('estado')
-        piso = request.query_params.get('piso')
-        if estado:
-            qs = qs.filter(estado=estado)
-        if piso:
-            qs = qs.filter(piso=piso)
+        habitaciones = services.listar_habitaciones(estado=estado)
+        serializer = HabitacionSerializer(habitaciones, many=True)
+        return Response(serializer.data)
 
-        return paginar_queryset_funcion(request, qs, HabitacionSerializer, page_size=30)
-
-    if request.method == 'POST':
-        if request.user.role != 'admin':
-            return Response({'error': 'Solo el administrador puede registrar nuevas habitaciones.'}, status=status.HTTP_403_FORBIDDEN)
-        
+    elif request.method == 'POST':
+        print("DATA:", request.data)
+        print("FILES:", request.FILES)
         serializer = HabitacionSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            habitacion = serializer.save()
+            return Response(HabitacionSerializer(habitacion).data, status=status.HTTP_201_CREATED)
+        print("ERRORS:", serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-@api_view(['GET', 'PUT', 'DELETE'])
+@api_view(['GET', 'PUT', 'PATCH'])
 @permission_classes([IsAuthenticated])
-@csrf_exempt
-def habitacion_detail(request, pk):
-    """
-    Operaciones individuales sobre una habitación específica.
-    """
-    try:
-        habitacion = Habitacion.objects.select_related('tipo').get(pk=pk)
-    except Habitacion.DoesNotExist:
-        return Response({'error': 'Habitación no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+@parser_classes([JSONParser, FormParser, MultiPartParser])
+def detalle_habitacion(request, pk):
+    habitacion = get_object_or_404(Habitacion, pk=pk)
 
     if request.method == 'GET':
         serializer = HabitacionSerializer(habitacion)
         return Response(serializer.data)
 
-    if request.method == 'PUT':
-        if request.user.role != 'admin':
-            return Response({'error': 'Solo el administrador puede modificar la configuración de las habitaciones.'}, status=status.HTTP_403_FORBIDDEN)
-        
-        serializer = HabitacionSerializer(habitacion, data=request.data, partial=True)
+    elif request.method in ('PUT', 'PATCH'):
+        partial = request.method == 'PATCH'
+        serializer = HabitacionSerializer(habitacion, data=request.data, partial=partial)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    if request.method == 'DELETE':
-        if request.user.role != 'admin':
-            return Response({'error': 'Solo el administrador puede eliminar habitaciones del sistema.'}, status=status.HTTP_403_FORBIDDEN)
-        habitacion.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-@csrf_exempt
-def cambiar_estado_limpieza(request, pk):
-    """
-    Cambia el estado de limpieza/mantenimiento de una habitación.
-    No permite cambiar el estado si la habitación está ocupada.
-    """
-    nuevo_estado = request.data.get('estado')
-    valid_estados = [e[0] for e in Habitacion.ESTADOS]
+def cambiar_estado_habitacion(request, pk):
+    habitacion = get_object_or_404(Habitacion, pk=pk)
+    serializer = CambioEstadoSerializer(data=request.data)
+    if serializer.is_valid():
+        estado = serializer.validated_data['estado']
+        notas = serializer.validated_data.get('notas', '')
+        es_emergencia = serializer.validated_data.get('es_emergencia', False)
+        pasar_a_limpia = serializer.validated_data.get('pasar_a_limpia', False)
 
-    if not nuevo_estado or nuevo_estado not in valid_estados:
-        return Response({'error': f'Estado inválido. Opciones: {", ".join(valid_estados)}'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            if estado == 'Limpia':
+                services.marcar_como_limpia(habitacion)
+            elif estado in ['Mantenimiento', 'Obra']:
+                if estado == 'Mantenimiento':
+                    services.iniciar_mantenimiento(habitacion, notas, es_emergencia)
+                else:
+                    services.iniciar_obra(habitacion, notas, es_emergencia)
+            elif estado in ['Sucia', 'Limpia'] and habitacion.estado in ['Mantenimiento', 'Obra']:
+                services.finalizar_mantenimiento_obra(habitacion, pasar_a_limpia)
+            else:
+                services.cambiar_estado(habitacion, estado, notas=notas, es_emergencia=es_emergencia, pasar_a_limpia=pasar_a_limpia)
 
-    try:
-        with transaction.atomic():
-            habitacion = Habitacion.objects.select_for_update().get(pk=pk)
+            return Response(HabitacionSerializer(habitacion).data)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            # 🔴 Regla de negocio: No se puede cambiar el estado si está ocupada
-            if habitacion.estado == 'ocupada':
-                return Response({'error': 'No se puede cambiar el estado de una habitación ocupada. Primero debe finalizar la reserva.'}, status=status.HTTP_400_BAD_REQUEST)
-
-            estado_anterior = habitacion.estado
-            habitacion.estado = nuevo_estado
-            habitacion.save(update_fields=['estado'])
-
-            HistorialEstadoHabitacion.objects.create(
-                habitacion=habitacion,
-                estado_anterior=estado_anterior,
-                estado_nuevo=nuevo_estado,
-                cambiado_por=request.user,
-                nota=request.data.get('motivo', 'Cambio de estado desde interfaz')
-            )
-
-        return Response({'message': f'Habitación {habitacion.numero} cambiada de {estado_anterior} a {nuevo_estado}.'}, status=status.HTTP_200_OK)
-
-    except Habitacion.DoesNotExist:
-        return Response({'error': 'Habitación no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
-    """
-    RF12: Cambia el estado de limpieza de una habitación de forma atómica y concurrente.
-    """
-    nuevo_estado = request.data.get('estado')
-    valid_estados = [e[0] for e in Habitacion.ESTADOS_HABITACION]
-
-    if not nuevo_estado or nuevo_estado not in valid_estados:
-        return Response({'error': f'Estado inválido. Opciones: {", ".join(valid_estados)}'}, status=status.HTTP_400_BAD_REQUEST)
-
-    try:
-        with transaction.atomic():
-            # Candado seguro a nivel de BD para evitar que dos hilos pisen el estado simultáneamente
-            habitacion = Habitacion.objects.select_for_update().get(pk=pk)
-            
-            estado_anterior = habitacion.estado
-            habitacion.estado = nuevo_estado
-            habitacion.save(update_fields=['estado'])  # Optimización SQL: Actualiza solo la columna modificada
-
-            # Registrar en el historial de auditoría
-            HistorialEstadoHabitacion.objects.create(
-                habitacion=habitacion,
-                estado_anterior=estado_anterior,
-                estado_nuevo=nuevo_estado,
-                usuario=request.user,
-                motivo=request.data.get('motivo', 'Cambio operativo de rutina')
-            )
-
-        return Response({
-            'message': f'Habitación {habitacion.numero} cambiada exitosamente de {estado_anterior} a {nuevo_estado}.'
-        }, status=status.HTTP_200_OK)
-
-    except Habitacion.DoesNotExist:
-        return Response({'error': 'Habitación no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
-
-
-@api_view(['GET', 'POST'])
+@api_view(['GET'])
 @permission_classes([IsAuthenticated])
-@csrf_exempt
-def tipos_habitacion_list(request):
-    """
-    Controlador para los tipos/categorías de habitaciones.
-    """
-    if request.method == 'GET':
-        tipos = TipoHabitacion.objects.all().order_by('nombre')
-        serializer = TipoHabitacionSerializer(tipos, many=True)
-        return Response(serializer.data)
+def verificar_disponibilidad(request, pk):
+    disponible = services.esta_disponible(pk)
+    return Response({'disponible': disponible})
 
-    if request.method == 'POST':
-        if request.user.role != 'admin':
-            return Response({'error': 'No autorizado.'}, status=status.HTTP_403_FORBIDDEN)
-        
-        serializer = TipoHabitacionSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def listar_disponibles_view(request):
+    habitaciones = services.listar_disponibles()
+    serializer = HabitacionSerializer(habitaciones, many=True)
+    return Response(serializer.data)

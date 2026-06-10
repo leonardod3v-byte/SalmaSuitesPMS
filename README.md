@@ -1,4 +1,4 @@
-# SalmaSuites PMS
+# SalmaSuitesPMS
 
 Sistema de gestión hotelera (PMS) para uso interno del **Hotel Salma Suite VIP**.  
 Desarrollado con SvelteKit 5 + Django 6 · Solo personal autorizado.
@@ -19,7 +19,7 @@ Desarrollado con SvelteKit 5 + Django 6 · Solo personal autorizado.
 
 ```bash
 # 1. Clonar o descomprimir el proyecto
-cd hotel-pms
+cd SalmaSuitesPMS
 
 # 2. Instalar dependencia raíz (concurrently)
 npm install
@@ -76,24 +76,72 @@ npm run dev
 ## Estructura del proyecto
 
 ```
-hotel-pms/
+SalmaSuitesPMS/
 ├── backend/          # Django 6 + DRF
 │   ├── apps/         # Un módulo por app de negocio
+│   │   ├── huespedes/
+│   │   ├── habitaciones/
+│   │   ├── reservaciones/
+│   │   ├── inventario/
+│   │   ├── usuarios/
+│   │   ├── configuracion/
+│   │   ├── bitacora/
+│   │   ├── dashboard/
+│   │   └── reportes/
 │   ├── config/       # settings.py, urls.py
 │   ├── .env          # Variables de entorno (NO subir a git)
-│   └── manage.py
-├── frontend/         # SvelteKit 5 (Runes)
+│   ├── manage.py
+│   └── seed.py
+├── frontend/         # SvelteKit 5 (Runes) + TailwindCSS
 │   └── src/
 │       ├── lib/
 │       │   ├── components/   # UI reutilizable
+│       │   │   ├── ui/       # Botones, inputs, modales, tabs, toast
+│       │   │   ├── dashboard/
+│       │   │   ├── habitaciones/
+│       │   │   ├── huespedes/
+│       │   │   ├── reservaciones/
+│       │   │   ├── inventario/
+│       │   │   ├── reportes/
+│       │   │   ├── configuracion/
+│       │   │   └── usuarios/
 │       │   ├── services/     # Llamadas a la API
-│       │   └── stores/       # Estado global (auth, toast)
+│       │   ├── stores/       # Estado global (auth, toast)
+│       │   └── types/        # Interfaces TypeScript
 │       ├── routes/           # Páginas del sistema
+│       │   ├── login/
+│       │   ├── recuperar/
+│       │   ├── dashboard/
+│       │   ├── habitaciones/
+│       │   ├── huespedes/
+│       │   ├── reservaciones/
+│       │   ├── inventario/
+│       │   ├── reportes/
+│       │   ├── configuracion/
+│       │   ├── usuarios/
+│       │   └── perfil/
 │       └── hooks.server.ts   # Validación de sesión SSR
+├── database/         # SQLite (desarrollo)
 ├── scripts/
 │   └── setup.bat     # Configuración inicial (Windows)
+├── LOGICA.md         # Especificación funcional completa
 └── package.json      # Scripts raíz con concurrently
 ```
+
+---
+
+## Módulos del sistema
+
+| Módulo        | Funcionalidades                                                                                 |
+| ------------- | ----------------------------------------------------------------------------------------------- |
+| Dashboard     | KPIs, ocupación semanal, actividades en tiempo real, mapa de habitaciones interactivo           |
+| Habitaciones  | CRUD, estados (Limpia/Ocupada/Sucia/Mantenimiento/Obra), imágenes, filtros                      |
+| Huéspedes     | CRUD, categoría VIP/Estándar, crédito autorizado, exportación CSV                               |
+| Reservaciones | Calendario semanal, flujo completo (crear → check‑in → consumos/pagos → check‑out), cancelación |
+| Inventario    | Productos, stock, movimientos (entradas/salidas/ajustes), alertas de stock bajo                 |
+| Reportes      | Cierre de caja diario, gráfico de ingresos por período                                          |
+| Configuración | Datos del hotel, moneda, colores por tipo de cliente y estado de habitación                     |
+| Usuarios      | Gestión de cuentas (admin), roles (admin/recepcionista), perfil con cambio de contraseña        |
 
 ---
 
@@ -105,18 +153,16 @@ venv\Scripts\activate
 python seed.py
 ```
 
-Crea habitaciones, huéspedes, reservas y actividades de ejemplo para desarrollo.
+Crea 18 habitaciones, 5 huéspedes, configuración inicial y colores por defecto.
 
 ---
 
 ## Usuarios del sistema
 
-| Rol             | Acceso                                                 |
-| --------------- | ------------------------------------------------------ |
-| `admin`         | Todo el sistema + configuración + administración       |
-| `recepcionista` | Dashboard, habitaciones, huéspedes, reservas, consumos |
-
-El superusuario se crea durante el `setup.bat` con `createsuperuser`.
+| Rol             | Usuario por defecto          | Acceso                                                        |
+| --------------- | ---------------------------- | ------------------------------------------------------------- |
+| `admin`         | `admin` / `admin123`         | Todo el sistema + configuración + administración              |
+| `recepcionista` | `recepcion` / `recepcion123` | Dashboard, habitaciones, huéspedes, reservas, consumos, pagos |
 
 ---
 
@@ -164,8 +210,16 @@ pip freeze > requirements.txt
 
 ---
 
-## Documentación interna
+## Tecnologías
 
-Para el detalle completo del sistema (decisiones técnicas, modelos, endpoints, cambios):
+| Capa       | Tecnología                                  |
+| ---------- | ------------------------------------------- |
+| Frontend   | SvelteKit 5 (Runes), TailwindCSS 4          |
+| Backend    | Django 6, Django REST Framework             |
+| Auth       | DRF Token Authentication + HttpOnly cookies |
+| Base datos | SQLite (dev), PostgreSQL (prod)             |
+| Gráficos   | Chart.js                                    |
 
-👉 [`CONTEXTO.md`](./CONTEXTO.md)
+```
+
+```

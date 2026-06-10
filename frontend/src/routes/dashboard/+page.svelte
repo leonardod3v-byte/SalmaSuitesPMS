@@ -1,205 +1,131 @@
 <script lang="ts">
-  import type { PageData } from './$types';
-  import WelcomeBanner from '$lib/components/WelcomeBanner.svelte';
-  import KPICard from '$lib/components/KPICard.svelte';
-  import Button from '$lib/components/Button.svelte';
+    import { onMount, onDestroy } from 'svelte';
+    import { goto } from '$app/navigation';
+    import { apiFetch } from '$lib/services/api';
+    import WelcomeBanner from '$components/dashboard/WelcomeBanner.svelte';
+    import KPICard from '$components/dashboard/KPICard.svelte';
+    import OcupacionChart from '$components/dashboard/OcupacionChart.svelte';
+    import ActividadesLog from '$components/dashboard/ActividadesLog.svelte';
+    import RoomMap from '$components/dashboard/RoomMap.svelte';
+    import Loading from '$components/ui/Loading.svelte';
+    import PageHeader from '$components/ui/PageHeader.svelte';
+    import Button from '$components/ui/Button.svelte';
+    import { auth } from '$stores/auth.svelte';
 
-  interface Stats {
-    ocupacion: { porcentaje: number; ocupadas: number; total: number; trend: { valor: string; subio: boolean } };
-    reservas_hoy: { total: number; check_ins_pendientes: number; check_outs_pendientes: number };
-    ingresos_dia: { monto: number; trend: { valor: string; subio: boolean } };
-    vip_hoy: { total: number };
-  }
-  interface Habitacion { num: string; estado: 'libre' | 'ocupada' | 'mantenimiento'; tipo: string; piso: number; }
-  interface Actividad { descripcion: string; created_at: string; }
+    let kpis = $state<any>(null);
+    let ocupacionSemanal = $state<any>(null);
+    let actividades = $state<any[]>([]);
+    let habitaciones = $state<any[]>([]);
+    let proximosCheckouts = $state<any>(null);
+    let habitacionesSucias = $state<number>(0);
+    let cargando = $state(true);
+    let error = $state('');
+    let pollingInterval: ReturnType<typeof setInterval>;
 
-  let { data }: { data: PageData } = $props();
+    async function cargarDatos() {
+        try {
+            const [k, o, a, h, p] = await Promise.all([
+                apiFetch<any>('/dashboard/kpis/'),
+                apiFetch<any>('/dashboard/ocupacion-semanal/'),
+                apiFetch<any[]>('/bitacora/actividades/?limit=20'),
+                apiFetch<any[]>('/habitaciones/'),
+                apiFetch<any>('/dashboard/proximos-checkouts/'),
+            ]);
+            kpis = k;
+            ocupacionSemanal = o;
+            actividades = a;
+            habitaciones = h;
+            proximosCheckouts = p;
+            habitacionesSucias = h.filter((hab: any) => hab.estado === 'Sucia').length;
+        } catch (e: any) {
+            error = e.message || 'Error al cargar el panel';
+        } finally {
+            cargando = false;
+        }
+    }
 
-  let stats = $derived(data.stats as Stats | null);
-  let habitaciones = $derived((data.habitaciones ?? []) as Habitacion[]);
-  let actividades = $derived((data.actividades ?? []) as Actividad[]);
-  let ocupacionSemanal = $derived((data.ocupacionSemanal as any)?.valores ?? [] as number[]);
-  let diasSemana = $derived((data.ocupacionSemanal as any)?.dias ?? [] as string[]);
+    onMount(() => {
+        cargarDatos();
+        // Polling de actividades cada 60 segundos
+        pollingInterval = setInterval(async () => {
+            try {
+                const a = await apiFetch<any[]>('/bitacora/actividades/?limit=20');
+                actividades = a;
+            } catch { /* ignorar errores de polling */ }
+        }, 60_000);
+    });
 
-  let filtroActivo = $state<string>('todas');
-
-  let habitacionesFiltradas = $derived(
-    filtroActivo === 'todas'
-      ? habitaciones
-      : habitaciones.filter(h => h.estado === filtroActivo)
-  );
-
-  const getEstadoClass = (estado: Habitacion['estado']) => {
-    const map: Record<string, string> = {
-      libre:         'bg-hotel-success/10 border-hotel-success/30 text-hotel-success-light',
-      ocupada:       'bg-hotel-gold/10 border-hotel-gold/30 text-hotel-gold-light',
-      mantenimiento: 'bg-hotel-error/10 border-hotel-error/30 text-hotel-error-light',
-    };
-    return map[estado] || 'bg-hotel-surface border-hotel-border text-hotel-text-tertiary';
-  };
-
-  const reloadPage = () => window.location.reload();
+    onDestroy(() => {
+        if (pollingInterval) clearInterval(pollingInterval);
+    });
 </script>
 
 <svelte:head>
-  <title>Panel de Control | SalmaSuitesPMS</title>
+    <title>Panel de Control | SalmaSuitesPMS</title>
 </svelte:head>
 
-{#if !stats}
-  <div class="flex items-center justify-center h-[60vh]">
-    <div class="text-center p-8 bg-hotel-error/5 border border-hotel-error/20 rounded-2xl">
-      <p class="text-hotel-error-light font-bold uppercase tracking-widest text-xs mb-4">
-        Error al cargar el panel
-      </p>
-      <Button variant="gold" size="sm" onclick={reloadPage}>Reintentar</Button>
+{#if cargando}
+    <Loading type="dashboard" message="Cargando panel de control..." skeletonCount={4} />
+{:else if error}
+    <div class="flex items-center justify-center h-[60vh]">
+        <div class="text-center p-8 bg-hotel-error/5 border border-hotel-error/20 rounded-2xl">
+            <p class="text-hotel-error-light font-bold uppercase tracking-widest text-xs mb-4">{error}</p>
+            <Button variant="gold" size="sm" onclick={() => window.location.reload()}>Reintentar</Button>
+        </div>
     </div>
-  </div>
 {:else}
-  <div class="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-700">
-    <WelcomeBanner />
+    <div class="space-y-8">
+        <WelcomeBanner stats={{ checkIns: kpis?.checkins_hoy ?? 0, checkOuts: proximosCheckouts?.total ?? 0 }} />
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-      <KPICard
-        title="Ocupación Real"
-        value="{stats?.ocupacion?.porcentaje ?? 0}%"
-        subtitle="{stats?.ocupacion?.ocupadas ?? 0} de {stats?.ocupacion?.total ?? 0} unidades"
-        trend={stats?.ocupacion?.trend?.valor}
-        trendUp={stats?.ocupacion?.trend?.subio}
-        iconName="hotel"
-        color="gold"
-      />
-      <KPICard
-        title="Check-In Hoy"
-        value={stats?.reservas_hoy?.total ?? 0}
-        subtitle="{stats?.reservas_hoy?.check_ins_pendientes ?? 0} ingresos pendientes"
-        iconName="calendar"
-        color="success"
-      />
-      <KPICard
-        title="Ingresos"
-        value="${stats?.ingresos_dia?.monto?.toLocaleString(undefined, { minimumFractionDigits: 2 }) ?? '0.00'}"
-        subtitle="Flujo de caja del día"
-        trend={stats?.ingresos_dia?.trend?.valor}
-        trendUp={stats?.ingresos_dia?.trend?.subio}
-        iconName="dinero"
-        color="gold"
-      />
-      <KPICard
-        title="Clientes VIP"
-        value={stats?.vip_hoy?.total ?? 0}
-        subtitle="Servicios preferenciales"
-        iconName="corona"
-        color="vip"
-      />
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <section class="lg:col-span-2 bg-hotel-surface rounded-2xl p-6 border border-hotel-border shadow-hotel-sm overflow-hidden">
-        <h3 class="font-display text-xl text-hotel-text-primary mb-8 italic">Ocupación Semanal</h3>
-        <div class="flex items-end justify-between gap-3 h-64 px-2">
-          {#each ocupacionSemanal as val, i}
-            <div class="flex-1 flex flex-col items-center gap-3 group relative">
-              <div class="absolute -top-10 left-1/2 -translate-x-1/2 bg-hotel-bg border border-hotel-gold/50 px-2 py-1 rounded text-[10px] text-hotel-gold font-bold opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-10 shadow-hotel-gold">
-                {val}%
-              </div>
-              <div class="w-full relative h-full flex flex-col justify-end bg-hotel-bg/30 rounded-t-md overflow-hidden">
-                <div
-                  class="w-full bg-linear-to-t from-hotel-gold-dark via-hotel-gold to-hotel-gold-light transition-all duration-1000 ease-out"
-                  style="height: {val}%"
-                  role="img"
-                  aria-label={`Ocupación ${val} por ciento`}
-                ></div>
-              </div>
-              <span class="text-[9px] text-hotel-text-tertiary font-black uppercase tracking-tighter transition-colors group-hover:text-hotel-gold">
-                {diasSemana[i] || '--'}
-              </span>
-            </div>
-          {/each}
+        <!-- KPIs clicables -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <a href="/habitaciones?estado=Ocupada" class="block">
+                <KPICard title="Ocupación Real" value="{kpis?.ocupacion?.porcentaje ?? 0}%" subtitle="{kpis?.ocupacion?.ocupadas ?? 0} de {kpis?.ocupacion?.disponibles ?? 0} habs." iconName="hotel" color="gold" />
+            </a>
+            <a href="/reservaciones?estado=EnCurso" class="block">
+                <KPICard title="Check-In Hoy" value={kpis?.checkins_hoy ?? 0} subtitle="{proximosCheckouts?.total ?? 0} check-outs pendientes" iconName="calendar" color="success" />
+            </a>
+            <a href="/reportes/cierre-caja" class="block">
+                <KPICard title="Ingresos" value="${kpis?.flujo_caja?.total ?? '0.00'}" subtitle="E: ${kpis?.flujo_caja?.efectivo ?? '0'} | T: ${kpis?.flujo_caja?.tarjeta ?? '0'} | M: ${kpis?.flujo_caja?.pago_movil ?? '0'}" iconName="dinero" color="gold" />
+            </a>
+            <a href="/huespedes?categoria=VIP&solo_alojados=1" class="block">
+                <KPICard title="Clientes VIP" value={kpis?.vip_alojados ?? 0} subtitle="{kpis?.productos_bajos ?? 0} productos bajos" iconName="corona" color="vip" />
+            </a>
         </div>
-      </section>
 
-      <section class="bg-hotel-surface rounded-2xl p-6 border border-hotel-border flex flex-col shadow-hotel-sm">
-        <h3 class="font-display text-xl text-hotel-text-primary mb-6 italic">Actividad</h3>
-        <div class="flex-1 space-y-0 overflow-y-auto pr-2 custom-scrollbar max-h-80">
-          {#each actividades as act, i}
-            <div class="flex gap-4 group relative pb-6 last:pb-0">
-              {#if i !== actividades.length - 1}
-                <div class="absolute left-[11px] top-7 w-px h-full bg-hotel-border/50 group-hover:bg-hotel-gold/20 transition-colors"></div>
-              {/if}
-              <div class="relative z-10">
-                <div class="w-[22px] h-[22px] rounded-full bg-hotel-bg border border-hotel-gold/30 flex items-center justify-center group-hover:border-hotel-gold transition-all duration-300 shadow-sm">
-                  <div class="w-1.5 h-1.5 rounded-full bg-hotel-gold/50 group-hover:bg-hotel-gold animate-pulse"></div>
+        <!-- Secciones rápidas: checkouts y limpieza -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <a href="/reservaciones?checkout=hoy" class="flex items-center gap-4 bg-hotel-surface rounded-2xl p-5 border border-hotel-border hover:border-hotel-gold/50 transition-all shadow-hotel-sm group">
+                <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-hotel-gold/10 border border-hotel-gold/20 text-hotel-gold group-hover:bg-hotel-gold group-hover:text-hotel-bg transition-all">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
                 </div>
-              </div>
-              <div class="flex-1 bg-hotel-bg/20 p-3 rounded-xl border border-transparent group-hover:border-hotel-border/30 group-hover:bg-hotel-surface-hover transition-all duration-300">
-                <p class="text-xs text-hotel-text-secondary leading-relaxed">{act.descripcion}</p>
-                <div class="mt-2 text-[9px] text-hotel-text-tertiary font-mono opacity-60">
-                  {new Date(act.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                <div>
+                    <p class="text-sm font-bold text-hotel-text-primary">{proximosCheckouts?.total ?? 0}</p>
+                    <p class="text-[10px] uppercase tracking-wider text-hotel-text-tertiary">Check‑outs pendientes hoy</p>
                 </div>
-              </div>
+            </a>
+            <a href="/habitaciones?estado=Sucia" class="flex items-center gap-4 bg-hotel-surface rounded-2xl p-5 border border-hotel-border hover:border-hotel-gold/50 transition-all shadow-hotel-sm group">
+                <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-hotel-info/10 border border-hotel-info/20 text-hotel-info-light group-hover:bg-hotel-info group-hover:text-white transition-all">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+                </div>
+                <div>
+                    <p class="text-sm font-bold text-hotel-text-primary">{habitacionesSucias}</p>
+                    <p class="text-[10px] uppercase tracking-wider text-hotel-text-tertiary">Habitaciones por limpiar</p>
+                </div>
+            </a>
+        </div>
+
+        <!-- Ocupación semanal + Actividades -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6" style="height: 400px;">
+            <div class="lg:col-span-2 h-full">
+                <OcupacionChart data={ocupacionSemanal} />
             </div>
-          {:else}
-            <p class="text-[10px] text-hotel-text-tertiary text-center italic py-10 uppercase tracking-widest">Sin registros recientes</p>
-          {/each}
+            <div class="h-full">
+                <ActividadesLog actividades={actividades} />
+            </div>
         </div>
-      </section>
+
+        <!-- Mapa de habitaciones -->
+        <RoomMap habitaciones={habitaciones} />
     </div>
-
-    <section class="bg-hotel-surface rounded-2xl p-6 border border-hotel-border shadow-hotel-sm">
-      <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-        <h3 class="font-display text-xl text-hotel-text-primary italic">Mapa de Habitaciones</h3>
-        <div class="flex p-1 bg-hotel-bg rounded-xl border border-hotel-border">
-          {#each ['todas', 'libre', 'ocupada', 'mantenimiento'] as f}
-            <button
-              onclick={() => filtroActivo = f}
-              class="px-4 py-1.5 text-[10px] uppercase font-bold rounded-lg transition-all {filtroActivo === f ? 'bg-hotel-gold text-hotel-bg shadow-hotel-sm' : 'text-hotel-text-tertiary hover:text-hotel-text-secondary'}"
-            >
-              {f}
-            </button>
-          {/each}
-        </div>
-      </div>
-
-      <div class="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-3">
-        {#each habitacionesFiltradas as hab}
-          <div class="aspect-square rounded-lg border flex items-center justify-center text-[10px] font-black transition-all hover:scale-110 shadow-sm {getEstadoClass(hab.estado)}">
-            {hab.num}
-          </div>
-        {/each}
-      </div>
-
-      <div class="mt-6 pt-4 border-t border-hotel-border/50 flex flex-wrap gap-3">
-        {#each [
-          { label: 'Libre', class: 'bg-hotel-success/10 border-hotel-success/30 text-hotel-success-light', dot: 'bg-hotel-success' },
-          { label: 'Ocupada', class: 'bg-hotel-gold/10 border-hotel-gold/30 text-hotel-gold-light', dot: 'bg-hotel-gold' },
-          { label: 'Mantenimiento/Limpieza', class: 'bg-hotel-error/10 border-hotel-error/30 text-hotel-error-light', dot: 'bg-hotel-error' },
-        ] as item}
-          <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[10px] font-bold transition-opacity hover:opacity-80 {item.class}">
-            <div class="w-2 h-2 rounded-full {item.dot} animate-pulse"></div>
-            {item.label}
-          </div>
-        {/each}
-      </div>
-    </section>
-  </div>
 {/if}
-
-<style>
-  .custom-scrollbar {
-    scrollbar-width: thin;
-    scrollbar-color: var(--color-hotel-border) transparent;
-  }
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 4px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: var(--color-hotel-border);
-    border-radius: 4px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: var(--color-hotel-gold);
-  }
-</style>

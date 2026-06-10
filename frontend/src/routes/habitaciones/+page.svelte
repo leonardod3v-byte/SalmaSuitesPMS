@@ -1,150 +1,115 @@
 <script lang="ts">
-  import type { PageData } from './$types';
-  import RoomCard from '$lib/components/habitaciones/RoomCard.svelte';
-  import RoomModal from '$lib/components/habitaciones/RoomModal.svelte';
-  import { auth } from '$lib/stores/auth';
-  import { invalidateAll } from '$app/navigation';
-  import Button from '$lib/components/Button.svelte';
-  import Icon from '$lib/components/Icons.svelte';
-  import InputHotel from '$lib/components/InputHotel.svelte';
-  import PageHeader from '$lib/components/PageHeader.svelte';
+    import { onMount } from 'svelte';
+    import PageHeader from '$components/ui/PageHeader.svelte';
+    import Button from '$components/ui/Button.svelte';
+    import Modal from '$components/ui/Modal.svelte';
+    import Loading from '$components/ui/Loading.svelte';
+    import FilterBar from '$components/ui/FilterBar.svelte';
+    import RoomCard from '$components/habitaciones/RoomCard.svelte';
+    import RoomForm from '$components/habitaciones/RoomForm.svelte';
+    import { fetchHabitaciones } from '$lib/services/habitaciones';
+    import type { Habitacion } from '$lib/types/habitacion';
 
-  type EstadoHabitacion = 'libre' | 'limpia' | 'sucia' | 'ocupada' | 'mantenimiento' | 'construccion';
+    let habitaciones = $state<Habitacion[]>([]);
+    let cargando = $state(true);
+    let error = $state('');
+    let mostrarForm = $state(false);
+    let busqueda = $state('');
+    let filtroEstado = $state<string | null>(null);
 
-  interface Habitacion {
-    id: number; numero: string; piso: number; tipo: number;
-    tipo_nombre?: string; estado: EstadoHabitacion;
-  }
+    let filtradas = $derived(
+        habitaciones.filter(h => {
+            const matchBusqueda = !busqueda.trim() ||
+                h.numero.includes(busqueda) ||
+                h.categoria_tipo.toLowerCase().includes(busqueda.toLowerCase());
+            const matchEstado = !filtroEstado || h.estado === filtroEstado;
+            return matchBusqueda && matchEstado;
+        })
+    );
 
-  interface TipoHabitacion {
-    id: number; nombre: string;
-  }
+    let tieneFiltros = $derived(filtroEstado !== null);
 
-  let { data }: { data: PageData } = $props();
+    const estadosFiltro = [
+        { value: 'Limpia', label: 'Limpias', color: 'bg-hotel-success' },
+        { value: 'Ocupada', label: 'Ocupadas', color: 'bg-hotel-gold' },
+        { value: 'Sucia', label: 'Sucias', color: 'bg-hotel-info-light' },
+        { value: 'Mantenimiento', label: 'Mantenimiento', color: 'bg-hotel-error' },
+        { value: 'Obra', label: 'Obra', color: 'bg-hotel-error' },
+    ];
 
-  let habitaciones = $derived((data.habitaciones ?? []) as Habitacion[]);
-  let tipos        = $derived((data.tipos ?? []) as TipoHabitacion[]);
+    onMount(async () => {
+        try {
+            habitaciones = await fetchHabitaciones();
+        } catch (e: any) {
+            error = e.message || 'Error al cargar habitaciones';
+        } finally {
+            cargando = false;
+        }
+    });
 
-  let filtroEstado = $state('todos');
-  let filtroTipo   = $state('todos');
-  let busqueda     = $state('');
+    async function refrescar() {
+        try {
+            habitaciones = await fetchHabitaciones();
+        } catch { }
+    }
 
-  const ESTADOS_MAP = [
-    { value: 'todos',         label: 'Todas'      },
-    { value: 'libre',         label: 'Libres'      },
-    { value: 'limpia',        label: 'Limpias'     },
-    { value: 'sucia',         label: 'Sucias'      },
-    { value: 'ocupada',       label: 'Ocupadas'    },
-    { value: 'mantenimiento', label: 'Mantenim.'   },
-  ];
-
-  const habitacionesFiltradas = $derived(
-    habitaciones.filter(h => {
-      const matchEstado = filtroEstado === 'todos' || h.estado === filtroEstado;
-      const matchTipo   = filtroTipo === 'todos'   || String(h.tipo) === filtroTipo;
-      const matchBusq   = !busqueda || h.numero.toLowerCase().includes(busqueda.toLowerCase());
-      return matchEstado && matchTipo && matchBusq;
-    })
-  );
-
-  const conteos = $derived(
-    habitaciones.reduce((acc, h) => {
-      acc[h.estado] = (acc[h.estado] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>)
-  );
-
-  const isAdmin = $derived($auth?.user?.role === 'admin');
-  const tieneFiltrosActivos = $derived(filtroEstado !== 'todos' || filtroTipo !== 'todos' || busqueda !== '');
-
-  let habitacionSeleccionada = $state<Habitacion | null>(null);
-  let mostrarModalCrear      = $state(false);
-
-  const cerrarModales = () => { habitacionSeleccionada = null; mostrarModalCrear = false; };
-  const resetFiltros  = () => { filtroEstado = 'todos'; filtroTipo = 'todos'; busqueda = ''; };
-  const recargarDatos = () => invalidateAll();
+    function resetFiltros() {
+        filtroEstado = null;
+        busqueda = '';
+    }
 </script>
 
 <svelte:head>
-  <title>Inventario de Habitaciones | SalmaSuitesPMS</title>
+    <title>Habitaciones | SalmaSuitesPMS</title>
 </svelte:head>
 
-<div class="max-w-[1600px] mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+<PageHeader title="Habitaciones" subtitle="{filtradas.length} habitaciones">
+    <Button variant="gold" size="md" onclick={() => mostrarForm = true}>
+        <span class="flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Nueva habitación
+        </span>
+    </Button>
+</PageHeader>
 
-  <PageHeader title="Habitaciones" subtitle={`${habitaciones.length} Unidades Totales`}>
-    {#if isAdmin}
-      <Button variant="gold" onclick={() => mostrarModalCrear = true}>
-        <Icon name="plus" class="w-4 h-4" />
-        Nueva Unidad
-      </Button>
-    {/if}
-  </PageHeader>
-
-  <section class="space-y-4">
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 bg-hotel-surface/40 p-2 rounded-2xl border border-hotel-border shadow-hotel-sm backdrop-blur-md">
-      
-      <InputHotel
-        type="text"
-        placeholder="Buscar unidad..."
-        bind:value={busqueda}
-      />
-
-      <select bind:value={filtroTipo} class="input-hotel h-12 bg-hotel-bg border-transparent focus:border-hotel-gold/30 font-bold text-[11px] uppercase tracking-wider px-4">
-        <option value="todos">Todos los tipos</option>
-        {#each tipos as t}
-          <option value={String(t.id)}>{t.nombre}</option>
-        {/each}
-      </select>
-
-      <div class="flex items-center justify-end px-2">
-        {#if tieneFiltrosActivos}
-          <button 
-            onclick={resetFiltros}
-            class="h-10 px-6 text-[9px] font-black uppercase tracking-widest text-hotel-error-light hover:bg-hotel-error/5 rounded-xl transition-all"
-          >
-            Limpiar filtros
-          </button>
-        {/if}
-      </div>
+{#if cargando}
+    <Loading type="dashboard" message="Cargando habitaciones..." />
+{:else if error}
+    <div class="text-center p-8 bg-hotel-error/5 border border-hotel-error/20 rounded-2xl">
+        <p class="text-hotel-error-light font-bold uppercase tracking-widest text-xs mb-4">{error}</p>
+        <Button variant="gold" size="md" onclick={() => window.location.reload()}>Reintentar</Button>
     </div>
+{:else}
+    <div class="space-y-6">
+        <FilterBar placeholder="Buscar por número o tipo..." bind:busqueda tieneFiltros onclear={resetFiltros}>
+            {#each estadosFiltro as f}
+                <button
+                    onclick={() => filtroEstado = filtroEstado === f.value ? null : f.value}
+                    class="flex-1 lg:flex-none inline-flex items-center justify-center gap-1.5 px-3 h-8 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all duration-300
+                    {filtroEstado === f.value
+                        ? 'border-' + f.value.toLowerCase() + '/50 text-' + f.value.toLowerCase() + '-light'
+                        : 'bg-hotel-bg border-hotel-border text-hotel-text-tertiary hover:border-hotel-gold/50'}"
+                >
+                    <span class="w-2 h-2 rounded-full {f.color}"></span>
+                    {f.label}
+                </button>
+            {/each}
+        </FilterBar>
 
-    <div class="flex flex-wrap items-center gap-2 px-1">
-      <span class="text-[9px] font-black uppercase tracking-[0.2em] text-hotel-text-tertiary mr-2">Estado:</span>
-      {#each ESTADOS_MAP as est}
-        {@const count = est.value === 'todos' ? habitaciones.length : (conteos[est.value] ?? 0)}
-        <button
-          onclick={() => filtroEstado = est.value}
-          class="flex items-center gap-3 px-4 py-2 rounded-full border text-[10px] font-black uppercase tracking-wider transition-all duration-300
-                {filtroEstado === est.value 
-                  ? 'bg-hotel-gold border-hotel-gold text-hotel-bg shadow-md scale-105' 
-                  : 'bg-hotel-surface border-hotel-border text-hotel-text-secondary hover:border-hotel-gold/50 hover:text-hotel-gold-light'}"
-        >
-          {est.label}
-          <span class="text-[9px] opacity-60 {filtroEstado === est.value ? 'text-hotel-bg' : 'text-hotel-gold'}">
-            {count}
-          </span>
-        </button>
-      {/each}
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {#each filtradas as hab}
+                <RoomCard habitacion={hab} onchange={refrescar} />
+            {:else}
+                <div class="col-span-full p-10 text-center text-hotel-text-tertiary uppercase tracking-widest text-xs bg-hotel-surface rounded-2xl border border-hotel-border">
+                    Sin habitaciones registradas
+                </div>
+            {/each}
+        </div>
     </div>
-  </section>
-
-  {#if habitacionesFiltradas.length === 0}
-    <div class="py-32 text-center bg-hotel-surface/20 rounded-3xl border border-dashed border-hotel-border">
-      <p class="text-sm font-display italic text-hotel-text-tertiary">No hay unidades que coincidan con los criterios</p>
-    </div>
-  {:else}
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {#each habitacionesFiltradas as hab (hab.id)}
-        <RoomCard {hab} onclick={() => habitacionSeleccionada = hab} />
-      {/each}
-    </div>
-  {/if}
-</div>
-
-{#if habitacionSeleccionada}
-  <RoomModal data={habitacionSeleccionada} modo="ver" {tipos} onclose={cerrarModales} onupdated={recargarDatos} />
 {/if}
 
-{#if mostrarModalCrear}
-  <RoomModal data={null} modo="crear" {tipos} onclose={cerrarModales} onupdated={recargarDatos} />
+{#if mostrarForm}
+    <Modal title="Registrar Habitación" subtitle="Completa todos los campos requeridos" onclose={() => mostrarForm = false}>
+        <RoomForm onclose={() => { mostrarForm = false; refrescar(); }} />
+    </Modal>
 {/if}

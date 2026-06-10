@@ -1,66 +1,59 @@
 import { redirect, type Handle } from '@sveltejs/kit';
 
-const API_URL = process.env.VITE_API_URL ?? 'http://localhost:8000/api';
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api';
 const COOKIE_NAME = 'auth_token';
 const PUBLIC_ROUTES = ['/login', '/recuperar', '/'];
-
-// Caché en memoria del servidor: token → { user, expiry }
-// Evita validar contra Django en cada request
-const userCache = new Map<string, { user: App.Locals['user']; expiry: number }>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+const ADMIN_ROUTES = ['/configuracion', '/usuarios']; // rutas exclusivas de admin
 
 export const handle: Handle = async ({ event, resolve }) => {
-    const token    = event.cookies.get(COOKIE_NAME);
+    const token = event.cookies.get(COOKIE_NAME);
     const pathname = event.url.pathname;
-
-    const isProtected = pathname.startsWith('/dashboard') ||
-                        pathname.startsWith('/habitaciones') ||
-                        pathname.startsWith('/reservaciones');
     const isLogin = pathname === '/login';
 
-    if (isProtected && !token) {
+    // Si no hay token y la ruta no es pública, redirigir al login
+    if (!token && !PUBLIC_ROUTES.includes(pathname)) {
         throw redirect(303, '/login');
     }
 
     if (token) {
-        // Verificar caché antes de llamar a Django
-        const cached = userCache.get(token);
-        if (cached && cached.expiry > Date.now()) {
-            event.locals.user = cached.user;
-        } else {
-            // Solo llama a Django si el caché expiró o no existe
-            try {
-                const res = await fetch(`${API_URL}/auth/profile/`, {
-                    headers: { Cookie: `${COOKIE_NAME}=${token}` },
-                });
+        // Verificar sesión contra la API
+        try {
+            const res = await fetch(`${API_URL}/auth/profile/`, {
+                headers: { Cookie: `${COOKIE_NAME}=${token}` },
+            });
 
-                if (res.ok) {
-                    const data = await res.json();
-                    const user = {
-                        id: String(data.id),
-                        username: data.username,
-                        email: data.email,
-                        role: data.role,
-                        first_name: data.first_name,
-                        last_name: data.last_name,
-                    };
-                    // Guardar en caché
-                    userCache.set(token, { user, expiry: Date.now() + CACHE_TTL });
-                    event.locals.user = user;
-                } else {
-                    userCache.delete(token);
-                    event.locals.user = null;
-                    event.cookies.delete(COOKIE_NAME, { path: '/' });
-                    if (isProtected) throw redirect(303, '/login');
-                }
-            } catch (err) {
-                if (err && typeof err === 'object' && 'status' in err) throw err;
+            if (res.ok) {
+                const data = await res.json();
+                event.locals.user = {
+                    id: data.id,
+                    username: data.username,
+                    email: data.email,
+                    role: data.role,
+                    nombre_completo: data.nombre_completo,
+                };
+            } else {
+                // Token inválido o expirado
+                event.cookies.delete(COOKIE_NAME, { path: '/' });
                 event.locals.user = null;
-                if (isProtected) throw redirect(303, '/login');
+                if (!PUBLIC_ROUTES.includes(pathname)) throw redirect(303, '/login');
             }
+        } catch (err: any) {
+            if (err?.status === 303) throw err;
+            event.locals.user = null;
+            if (!PUBLIC_ROUTES.includes(pathname)) throw redirect(303, '/login');
         }
 
-        if (isLogin && event.locals.user) throw redirect(303, '/dashboard');
+        // Si ya logueado y está en /login, redirigir a dashboard
+        if (isLogin && event.locals.user) {
+            throw redirect(303, '/dashboard');
+        }
+
+        // Proteger rutas exclusivas de administrador
+        if (event.locals.user?.role !== 'admin') {
+            if (ADMIN_ROUTES.some(route => pathname.startsWith(route))) {
+                throw redirect(303, '/dashboard');
+            }
+        }
     } else {
         event.locals.user = null;
     }

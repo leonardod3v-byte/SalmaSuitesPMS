@@ -1,88 +1,92 @@
 import { apiFetch } from './api';
+import type { Reservacion, ReservaListItem, Consumo, Pago, ResumenCheckout } from '$lib/types/reservacion';
 
-export type TipoCliente = 
-  | 'particular' | 'militar' | 'politico' | 'artista' | 'empresarial'
-  | 'deportista' | 'diplomatico' | 'medico' | 'religioso' | 'turista'
-  | 'ejecutivo_ventas' | 'comerciante';
-
-export const TIPOS_CLIENTE: Record<TipoCliente, { label: string; color: string; bg: string; text: string }> = {
-  particular:        { label: 'Particular',        color: '#7340A0', bg: 'rgba(115,64,160,0.1)', text: '#7340A0' },
-  militar:           { label: 'Militar / GN',      color: '#2D6A4F', bg: 'rgba(45,106,79,0.1)',   text: '#2D6A4F' },
-  politico:          { label: 'Político / Gov.',   color: '#9B2226', bg: 'rgba(155,34,38,0.1)',    text: '#9B2226' },
-  artista:           { label: 'Artista / Medios',  color: '#1E3A5F', bg: 'rgba(30,58,95,0.1)',     text: '#1E3A5F' },
-  empresarial:       { label: 'Empresarial',       color: '#B38E5D', bg: 'rgba(179,142,93,0.1)',   text: '#B38E5D' },
-  deportista:        { label: 'Deportista',        color: '#1B5E20', bg: 'rgba(27,94,32,0.1)',     text: '#1B5E20' },
-  diplomatico:       { label: 'Diplomático',       color: '#4A148C', bg: 'rgba(74,20,140,0.1)',    text: '#4A148C' },
-  medico:            { label: 'Médico',            color: '#006064', bg: 'rgba(0,96,100,0.1)',     text: '#006064' },
-  religioso:         { label: 'Religioso',         color: '#E65100', bg: 'rgba(230,81,0,0.1)',     text: '#E65100' },
-  turista:           { label: 'Turista / Agencia', color: '#37474F', bg: 'rgba(55,71,79,0.1)',     text: '#37474F' },
-  ejecutivo_ventas:  { label: 'Ejecutivo de Ventas', color: '#C97B0A', bg: 'rgba(201,123,10,0.1)', text: '#C97B0A' },
-  comerciante:       { label: 'Comerciante',       color: '#2C7DA0', bg: 'rgba(44,125,160,0.1)',   text: '#2C7DA0' },
-};
-
-export interface ReservaListItem {
-  consumos: never[];
-  pagos: never[];
-  id: number;
-  estado: string;
-  fecha_entrada: string;
-  fecha_salida: string;
-  noches: number;
-  huesped_nombre: string;
-  huesped_documento: string;
-  habitacion_numero: string;
-  monto_total: number;
-  monto_pagado: number;
-  saldo_pendiente: number;
-  metodo_pago: string;
-  created_at: string;
-  tipo_cliente: TipoCliente;
-  modalidad_pago?: 'contado' | 'abono' | 'credito';
-  requiere_factura?: boolean;
+// Lista
+export function fetchReservaciones(params?: string): Promise<Reservacion[]> {
+    const query = params ? `?${params}` : '';
+    return apiFetch<Reservacion[]>(`/reservaciones/${query}`);
 }
 
-export interface ReservaPayload {
-  habitacion: number;
-  huesped: number;
-  fecha_entrada: string;
-  fecha_salida: string;
-  estado: string;
-  metodo_pago: string;
-  referencia_pago: string;
-  monto_total: number;
-  monto_pagado: number;
-  tipo_cliente?: TipoCliente; 
-  notas: string;
-  requiere_factura_seniat?: boolean;
-  modalidad_pago?: 'contado' | 'abono' | 'credito';
-  requiere_factura?: boolean;
-  datos_fiscales?: {
-    rif: string;
-    razon_social: string;
-    direccion: string;
-  };
+// Calendario
+export function fetchReservasCalendario(semanaInicio: string): Promise<ReservaListItem[]> {
+    return apiFetch<ReservaListItem[]>(`/reservaciones/?desde=${semanaInicio}&hasta=${semanaInicio}&formato=calendario`);
 }
 
-export const reservacionesApi = {
-  list: (params?: Record<string, string>) => {
-    const query = params ? '?' + new URLSearchParams(params).toString() : '';
-    return apiFetch<ReservaListItem[]>(`/reservaciones/${query}`);
-  },
-  get: (id: number) => apiFetch<ReservaListItem>(`/reservaciones/${id}/`),
-  create: (data: ReservaPayload) => apiFetch('/reservaciones/', { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: number, data: Partial<ReservaPayload>) => apiFetch(`/reservaciones/${id}/`, { method: 'PUT', body: JSON.stringify(data) }),
-  delete: (id: number) => apiFetch(`/reservaciones/${id}/`, { method: 'DELETE' }),
-  registrarNoShow: (id: number, motivo: string) => apiFetch(`/reservaciones/${id}/no-show/`, { method: 'POST', body: JSON.stringify({ motivo }) }),
-  agregarConsumo: (id: number, consumo: any) => apiFetch(`/reservaciones/${id}/consumo/`, { method: 'POST', body: JSON.stringify(consumo) }),
-  cambiarHabitacion: (id: number, nuevaHabitacionId: number, motivo: string) => apiFetch(`/reservaciones/${id}/cambiar-habitacion/`, { method: 'POST', body: JSON.stringify({ nueva_habitacion_id: nuevaHabitacionId, motivo }) }),
-  registrarPago: (id: number, pago: { monto: number; metodo: string; referencia: string; fecha: string }) => apiFetch(`/pagos/`, { method: 'POST', body: JSON.stringify({ reserva: id, ...pago }) }),
-  checkin: (id: number) => apiFetch(`/reservaciones/${id}/checkin/`, { method: 'POST' }),
-  checkout: (id: number) => apiFetch(`/reservaciones/${id}/checkout/`, { method: 'POST' }),
-  cancelar: (id: number) => apiFetch(`/reservaciones/${id}/cancelar/`, { method: 'POST' }),
-};
+// CRUD
+export function fetchReservacion(id: number): Promise<Reservacion> {
+    return apiFetch<Reservacion>(`/reservaciones/${id}/`);
+}
 
-export const METODOS_PAGO = [
-  { value: 'efectivo', label: 'Efectivo' },
-  { value: 'tarjeta', label: 'Tarjeta' },
-  { value: 'pago_movil', label: 'Pago Móvil' },
-];
+export function createReservacion(data: any): Promise<Reservacion> {
+    return apiFetch<Reservacion>('/reservaciones/', {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+}
+
+// Acciones
+export function realizarCheckin(id: number): Promise<Reservacion> {
+    return apiFetch<Reservacion>(`/reservaciones/${id}/checkin/`, { method: 'POST' });
+}
+
+export function realizarCheckout(id: number): Promise<Reservacion> {
+    return apiFetch<Reservacion>(`/reservaciones/${id}/checkout/`, { method: 'POST' });
+}
+
+export function cancelarReservacion(id: number, motivo: string, acta?: string): Promise<Reservacion> {
+    return apiFetch<Reservacion>(`/reservaciones/${id}/cancelar/`, {
+        method: 'POST',
+        body: JSON.stringify({ motivo, acta }),
+    });
+}
+
+export function marcarNoshow(id: number, motivo: string, acta?: string): Promise<Reservacion> {
+    return apiFetch<Reservacion>(`/reservaciones/${id}/noshow/`, {
+        method: 'POST',
+        body: JSON.stringify({ motivo, acta }),
+    });
+}
+
+export function fetchResumenCheckout(id: number): Promise<ResumenCheckout> {
+    return apiFetch<ResumenCheckout>(`/reservaciones/${id}/resumen-checkout/`);
+}
+
+// Consumos
+export function fetchConsumos(reservaId: number): Promise<Consumo[]> {
+    return apiFetch<Consumo[]>(`/reservaciones/${reservaId}/consumos/`);
+}
+
+export function agregarConsumo(reservaId: number, data: any): Promise<Consumo> {
+    return apiFetch<Consumo>(`/reservaciones/${reservaId}/consumos/`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+}
+
+// Pagos
+export function fetchPagos(reservaId: number): Promise<Pago[]> {
+    return apiFetch<Pago[]>(`/reservaciones/${reservaId}/pagos/`);
+}
+
+export function registrarPago(reservaId: number, data: any): Promise<Pago> {
+    return apiFetch<Pago>(`/reservaciones/${reservaId}/pagos/`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+}
+
+// Colores para el calendario
+export const TIPOS_CLIENTE: Record<string, { label: string; color: string; bg: string; text: string }> = {
+    'Particular': { label: 'Particular', color: '#9E9E9E', bg: '#9E9E9E15', text: '#9E9E9E' },
+    'Empresario': { label: 'Empresario', color: '#607D8B', bg: '#607D8B15', text: '#607D8B' },
+    'Turista': { label: 'Turista', color: '#FF5722', bg: '#FF572215', text: '#FF5722' },
+    'Militar': { label: 'Militar', color: '#4CAF50', bg: '#4CAF5015', text: '#4CAF50' },
+    'Político': { label: 'Político', color: '#2196F3', bg: '#2196F315', text: '#2196F3' },
+    'Artista': { label: 'Artista', color: '#FF9800', bg: '#FF980015', text: '#FF9800' },
+    'Deportista': { label: 'Deportista', color: '#E91E63', bg: '#E91E6315', text: '#E91E63' },
+    'Diplomático': { label: 'Diplomático', color: '#3F51B5', bg: '#3F51B515', text: '#3F51B5' },
+    'Médico': { label: 'Médico', color: '#00BCD4', bg: '#00BCD415', text: '#00BCD4' },
+    'Religioso': { label: 'Religioso', color: '#FFEB3B', bg: '#FFEB3B15', text: '#FFEB3B' },
+    'Ejecutivo de Ventas': { label: 'Ejecutivo Ventas', color: '#795548', bg: '#79554815', text: '#795548' },
+    'Comerciante': { label: 'Comerciante', color: '#8BC34A', bg: '#8BC34A15', text: '#8BC34A' },
+};

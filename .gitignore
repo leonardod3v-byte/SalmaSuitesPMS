@@ -107,8 +107,8 @@ pnpm-debug.log*
 # ===============================
 # 7. ARCHIVOS DE PROYECTO ESPECÍFICOS (OPCIONAL)
 # ===============================
-CONTEXTO.md
-RUTAS.md
+LOGICA.md
+ESTRUCTURA.md
 
 # ===============================
 # 8. ARCHIVOS DE RESPALDO Y CACHÉ

@@ -1,10 +1,10 @@
 <script lang="ts">
   import '../app.css';
   import { page } from '$app/stores';
-  import Sidebar from '$lib/components/Sidebar.svelte';
-  import Header from '$lib/components/Header.svelte';
-  import Toast from '$lib/components/Toast.svelte';
-  import { auth } from '$lib/stores/auth';
+  import Sidebar from '$components/ui/Sidebar.svelte';
+  import Header from '$components/ui/Header.svelte';
+  import Toast from '$components/ui/Toast.svelte';
+  import { auth } from '$stores/auth.svelte';
 
   let { children, data } = $props();
 

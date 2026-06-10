@@ -1,64 +1,56 @@
 <script lang="ts">
-  import { pagosApi } from '$lib/services/pagos';
-  import { toast } from '$lib/stores/toast';
-  import Button from '$lib/components/Button.svelte';
-  import Icon from '$lib/components/Icons.svelte';
+    import { toast } from '$lib/stores/toast';
+    import InputHotel from '$components/ui/Input.svelte';
+    import Select from '$components/ui/Select.svelte';
+    import Button from '$components/ui/Button.svelte';
+    import { registrarPago } from '$lib/services/reservaciones';
 
-  const METODOS = [
-    { value: 'efectivo', label: 'Efectivo', icon: 'efectivo' },
-    { value: 'tarjeta', label: 'Tarjeta', icon: 'credit-card' },
-    { value: 'pago_movil', label: 'Pago Móvil', icon: 'pago_movil' },
-  ];
+    let {
+        reservaId,
+        onclose,
+    }: {
+        reservaId: number;
+        onclose: () => void;
+    } = $props();
 
-  let { reservaId, totalPendiente, onpago } = $props();
-  // svelte-ignore state_referenced_locally
-  let monto = $state(totalPendiente);
-  let metodo = $state('efectivo');
-  let referencia = $state('');
-  let guardando = $state(false);
+    let loading = $state(false);
+    let monto = $state(0);
+    let metodoPago = $state<'Efectivo' | 'Tarjeta' | 'PagoMovil'>('Efectivo');
+    let numeroReferencia = $state('');
 
-  async function registrar() {
-    if (monto <= 0) return toast.send('Monto inválido', 'error');
-    guardando = true;
-    try {
-      await pagosApi.registrar({ reserva: reservaId, monto, metodo, referencia });
-      toast.send('Pago registrado', 'success');
-      onpago();
-    } catch { toast.send('Error', 'error'); }
-    finally { guardando = false; }
-  }
+    const metodos = [
+        { value: 'Efectivo', label: 'Efectivo' },
+        { value: 'Tarjeta', label: 'Tarjeta' },
+        { value: 'PagoMovil', label: 'Pago Móvil' },
+    ];
+
+    async function guardar() {
+        loading = true;
+        try {
+            await registrarPago(reservaId, {
+                monto,
+                metodo_pago: metodoPago,
+                numero_referencia: numeroReferencia,
+            });
+            toast.success('Pago registrado.');
+            onclose();
+        } catch (e: any) {
+            toast.error(e.message);
+        } finally {
+            loading = false;
+        }
+    }
 </script>
 
-<div class="space-y-6">
-  <div class="bg-hotel-surface/40 rounded-2xl p-6">
-    <h3 class="text-sm font-bold uppercase mb-4">Registrar Abono</h3>
-    <div class="space-y-4">
-      <div>
-        <!-- svelte-ignore a11y_label_has_associated_control -->
-        <label class="text-[10px] font-black uppercase">Monto a pagar ($)</label>
-        <input type="number" bind:value={monto} class="input-hotel mt-1" />
-      </div>
-      <div>
-        <!-- svelte-ignore a11y_label_has_associated_control -->
-        <label class="text-[10px] font-black uppercase">Método de pago</label>
-        <div class="grid grid-cols-3 gap-2 mt-2">
-          {#each METODOS as m}
-            <button onclick={() => metodo = m.value} class="flex flex-col items-center p-3 rounded-xl border {metodo === m.value ? 'border-hotel-gold bg-hotel-gold/10' : 'border-hotel-border'}">
-              <Icon name='efectivo' class="w-5 h-5" />
-              <span class="text-[9px] font-bold mt-1">{m.label}</span>
-            </button>
-          {/each}
-        </div>
-      </div>
-      <div>
-        <!-- svelte-ignore a11y_label_has_associated_control -->
-        <label class="text-[10px] font-black uppercase">Referencia</label>
-        <input type="text" bind:value={referencia} placeholder="Nº de operación" class="input-hotel mt-1" />
-      </div>
+<div class="space-y-4">
+    <InputHotel label="Monto ($)" type="number" bind:value={monto} />
+    <Select label="Método de pago" options={metodos} bind:value={metodoPago} />
+    {#if metodoPago !== 'Efectivo'}
+        <InputHotel label="Nº Referencia" bind:value={numeroReferencia} />
+    {/if}
+
+    <div class="flex gap-3 pt-4 border-t border-hotel-border/50">
+        <Button variant="gold" onclick={guardar} loading={loading}>Registrar Pago</Button>
+        <Button variant="ghost" onclick={onclose}>Cancelar</Button>
     </div>
-  </div>
-  <div class="flex justify-end gap-3">
-    <Button variant="ghost" onclick={onpago}>Cancelar</Button>
-    <Button variant="gold" onclick={registrar} disabled={guardando}>{guardando ? 'Procesando...' : 'Confirmar Pago'}</Button>
-  </div>
 </div>

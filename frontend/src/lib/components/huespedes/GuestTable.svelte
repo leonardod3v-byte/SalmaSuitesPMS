@@ -1,98 +1,101 @@
 <script lang="ts">
-  import { type HuespedListItem } from '$lib/services/huespedes';
-  import VIPToggle from './VIPToggle.svelte';
-  import Button from '$lib/components/Button.svelte';
-  import Icon from '$lib/components/Icons.svelte';
+    import { goto } from '$app/navigation';
+    import type { Huesped } from '$lib/types/huesped';
 
-  let { huespedes, onVipToggled, onVerDetalle }: {
-    huespedes: HuespedListItem[];
-    onVipToggled: (id: number, nuevoEstado: boolean) => void;
-    onVerDetalle: (h: HuespedListItem) => void;
-  } = $props();
+    let {
+        huespedes,
+    }: {
+        huespedes: Huesped[];
+    } = $props();
 
-  const df = new Intl.DateTimeFormat('es-VE', { day: '2-digit', month: 'short', year: 'numeric' });
+    const coloresTipo: Record<string, string> = {
+        'Particular': '#9E9E9E',
+        'Empresario': '#607D8B',
+        'Turista': '#FF5722',
+        'Militar': '#4CAF50',
+        'Político': '#2196F3',
+        'Artista': '#FF9800',
+        'Deportista': '#E91E63',
+        'Diplomático': '#3F51B5',
+        'Médico': '#00BCD4',
+        'Religioso': '#FFEB3B',
+        'Ejecutivo de Ventas': '#795548',
+        'Comerciante': '#8BC34A',
+    };
+
+    function verDetalle(id: number) {
+        goto(`/huespedes/${id}`);
+    }
 </script>
 
-{#snippet Identity(h: HuespedListItem)}
-  <div class="flex items-center gap-3">
-    <div class="w-8 h-8 rounded-full bg-hotel-gold/10 border border-hotel-gold/20 flex items-center justify-center shrink-0">
-      <span class="text-[11px] font-black text-hotel-gold uppercase">
-        {h.nombre_completo.charAt(0)}
-      </span>
-    </div>
-    <div class="flex flex-col">
-      <span class="font-semibold text-hotel-text-primary leading-tight">{h.nombre_completo}</span>
-      <span class="md:hidden font-mono text-[10px] text-hotel-text-tertiary mt-0.5">{h.documento_formateado}</span>
-    </div>
-  </div>
-{/snippet}
-
-{#snippet Document(doc: string)}
-  <span class="font-mono text-[10px] tracking-tighter bg-hotel-bg px-2 py-1 rounded border border-hotel-border text-hotel-text-secondary uppercase">
-    {doc}
-  </span>
-{/snippet}
-
-{#if huespedes.length === 0}
-  <div class="py-24 text-center border border-dashed border-hotel-border rounded-2xl bg-hotel-surface/30">
-    <Icon name="user" class="w-12 h-12 mx-auto mb-4 text-hotel-text-tertiary/50" />
-    <p class="text-sm font-display italic text-hotel-text-tertiary">No hay huéspedes registrados en esta categoría</p>
-  </div>
-{:else}
-  <div class="hidden md:block overflow-hidden rounded-xl border border-hotel-border bg-hotel-surface/20">
-    <table class="w-full text-left border-collapse">
-      <thead>
-        <tr class="bg-hotel-bg/80 border-b border-hotel-border">
-          {#each ['Huésped', 'Documento', 'Contacto', 'Estatus', 'Registro', ''] as label}
-            <th class="px-5 py-4 text-[10px] font-black uppercase tracking-[0.15em] text-hotel-text-tertiary">{label}</th>
-          {/each}
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-hotel-border/30">
-        {#each huespedes as h (h.id)}
-          <tr class="group hover:bg-hotel-gold/0.02 transition-colors">
-            <td class="px-5 py-4">{@render Identity(h)}</td>
-            <td class="px-5 py-4">{@render Document(h.documento_formateado)}</td>
-            <td class="px-5 py-4">
-              <div class="text-[11px] leading-relaxed">
-                <p class="text-hotel-text-secondary font-medium">{h.telefono || '—'}</p>
-                <p class="text-hotel-text-tertiary truncate max-w-[150px]">{h.email || ''}</p>
-              </div>
-            </td>
-            <td class="px-5 py-4">
-              <VIPToggle id={h.id} esVip={h.es_vip} onToggled={(v) => onVipToggled(h.id, v)} />
-            </td>
-            <td class="px-5 py-4 text-[11px] text-hotel-text-tertiary font-medium">
-              {df.format(new Date(h.created_at))}
-            </td>
-            <td class="px-5 py-4 text-right">
-              <Button variant="ghost" size="sm" onclick={() => onVerDetalle(h)}>
-                Detalles
-              </Button>
-            </td>
-          </tr>
-        {/each}
-      </tbody>
+<div class="overflow-x-auto custom-scrollbar">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="border-b border-hotel-border text-[10px] uppercase tracking-widest text-hotel-text-tertiary text-left">
+                <th class="p-3 font-bold">Huésped</th>
+                <th class="p-3 font-bold hidden md:table-cell">Tipo</th>
+                <th class="p-3 font-bold hidden lg:table-cell">Contacto</th>
+                <th class="p-3 font-bold">Categoría</th>
+                <th class="p-3 font-bold hidden xl:table-cell">Crédito</th>
+                <th class="p-3 font-bold text-right"></th>
+            </tr>
+        </thead>
+        <tbody>
+            {#each huespedes as h (h.id)}
+                <tr class="border-b border-hotel-border/30 hover:bg-hotel-surface-hover transition-colors cursor-pointer" onclick={() => verDetalle(h.id)}>
+                    <td class="p-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
+                                style="background-color: {coloresTipo[h.tipo_cliente_profesion] || '#9E9E9E'}15; color: {coloresTipo[h.tipo_cliente_profesion] || '#9E9E9E'}">
+                                {h.nombres.charAt(0)}{h.apellidos.charAt(0)}
+                            </div>
+                            <div>
+                                <p class="font-bold text-hotel-text-primary">{h.nombres} {h.apellidos}</p>
+                                <p class="text-[10px] text-hotel-text-tertiary">{h.tipo_documento}-{h.numero_documento}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="p-3 hidden md:table-cell">
+                        <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-bold"
+                            style="background-color: {coloresTipo[h.tipo_cliente_profesion] || '#9E9E9E'}15; color: {coloresTipo[h.tipo_cliente_profesion] || '#9E9E9E'}">
+                            <span class="w-1.5 h-1.5 rounded-full" style="background-color: {coloresTipo[h.tipo_cliente_profesion] || '#9E9E9E'}"></span>
+                            {h.tipo_cliente_profesion}
+                        </span>
+                    </td>
+                    <td class="p-3 hidden lg:table-cell">
+                        <div class="text-hotel-text-secondary text-xs space-y-0.5">
+                            <p>{h.telefono}</p>
+                            <p class="text-hotel-text-tertiary text-[10px]">{h.email || '—'}</p>
+                        </div>
+                    </td>
+                    <td class="p-3">
+                        {#if h.categoria === 'VIP'}
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-hotel-vip/10 text-hotel-vip-light border border-hotel-vip/20">
+                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                                VIP
+                            </span>
+                        {:else}
+                            <span class="text-[10px] text-hotel-text-tertiary">Estándar</span>
+                        {/if}
+                    </td>
+                    <td class="p-3 hidden xl:table-cell">
+                        {#if h.credito_autorizado}
+                            <span class="text-hotel-success-light text-[10px] font-bold">${h.limite_credito ?? '∞'}</span>
+                        {:else}
+                            <span class="text-hotel-text-tertiary text-[10px]">—</span>
+                        {/if}
+                    </td>
+                    <td class="p-3 text-right">
+                        <button onclick={(e) => { e.stopPropagation(); verDetalle(h.id); }} class="text-hotel-gold hover:text-hotel-gold-light text-[10px] font-bold uppercase tracking-wider transition-colors">
+                            Editar
+                        </button>
+                    </td>
+                </tr>
+            {:else}
+                <tr>
+                    <td colspan="6" class="p-10 text-center text-hotel-text-tertiary uppercase tracking-widest text-xs">Sin huéspedes registrados</td>
+                </tr>
+            {/each}
+        </tbody>
     </table>
-  </div>
-
-  <div class="md:hidden space-y-3">
-    {#each huespedes as h (h.id)}
-      <div class="bg-hotel-surface border border-hotel-border rounded-xl p-4 active:scale-[0.98] transition-all">
-        <div class="flex items-start justify-between">
-          <button onclick={() => onVerDetalle(h)} class="flex-1 text-left">
-            {@render Identity(h)}
-          </button>
-          <VIPToggle id={h.id} esVip={h.es_vip} onToggled={(v) => onVipToggled(h.id, v)} />
-        </div>
-        
-        {#if h.telefono || h.email}
-          <div class="mt-4 pt-3 border-t border-hotel-border/50 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-hotel-text-tertiary">
-            {#if h.telefono}<span class="flex items-center gap-1 font-medium text-hotel-text-secondary">{h.telefono}</span>{/if}
-            {#if h.email}<span class="truncate">{h.email}</span>{/if}
-          </div>
-        {/if}
-      </div>
-    {/each}
-  </div>
-{/if}
+</div>

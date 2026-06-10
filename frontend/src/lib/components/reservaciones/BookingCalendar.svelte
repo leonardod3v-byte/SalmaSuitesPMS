@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { TIPOS_CLIENTE, type ReservaListItem } from '$lib/services/reservaciones';
-  import Icon from '$lib/components/Icons.svelte';
+  import { TIPOS_CLIENTE } from '$lib/services/reservaciones';
+  import type { ReservaListItem } from '$lib/types/reservacion';
+  import Icon from '$components/ui/Icons.svelte';
 
   let { reservas, habitaciones, semanaInicio, onCeldaClick }: {
     reservas:      ReservaListItem[];
@@ -110,8 +111,8 @@
                   <div class="flex items-center justify-center h-10">
                     {#if reserva}
                       <div 
-                        class="w-8 h-8 rounded-full border-2 flex items-center justify-center transition-transform group-hover/cell:scale-110 shadow-sm"
-                        style="background: {config?.bg}; border-color: {config?.color}; color: {config?.text}"
+                          class="w-8 h-8 rounded-full border-2 flex items-center justify-center transition-transform group-hover/cell:scale-110 shadow-sm"
+                          style="background: {config?.bg}; border-color: {config?.color}; color: {config?.text}"
                       >
                         {#if isStart}
                           <Icon name="arrow-right" class="w-4 h-4" />
@@ -159,10 +160,3 @@
     </div>
   {/each}
 </div>
-
-<style>
-  @reference "../../../app.css";
-  .custom-scrollbar::-webkit-scrollbar { height: 6px; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: #d4af3720; border-radius: 20px; }
-  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-</style>

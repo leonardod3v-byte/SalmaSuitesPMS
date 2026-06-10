@@ -1,12 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { auth } from '$lib/stores/auth';
+  import { auth } from '$stores/auth.svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import Button from '$lib/components/Button.svelte';
-  import InputHotel from '$lib/components/InputHotel.svelte';
-  import CardHotel from '$lib/components/CardHotel.svelte';
-  import Icon from '$lib/components/Icons.svelte';
+  import { toast } from '$lib/stores/toast';
+  import Button from '$components/ui/Button.svelte';
+  import InputHotel from '$components/ui/Input.svelte';
+  import CardHotel from '$components/ui/Card.svelte';
+  import Icon from '$components/ui/Icons.svelte';
 
   let username = $state('');
   let password = $state('');
@@ -36,8 +37,10 @@
     } catch (err: unknown) {
       if (err instanceof Error) {
         error = err.message;
+        toast.error(err.message);
       } else {
         error = 'Credenciales incorrectas o error de servidor';
+        toast.error('Credenciales incorrectas o error de servidor');
       }
     } finally {
       loading = false;
@@ -83,13 +86,6 @@
           <p class="text-xs text-hotel-text-tertiary uppercase tracking-wider font-medium">Gestión de Acceso Autorizado</p>
         </div>
 
-        {#if successMsg}
-          <div class="flex items-center gap-3 text-sm rounded-xl px-4 py-3 bg-hotel-success/10 border border-hotel-success/20 text-hotel-success-light animate-in zoom-in-95 duration-300">
-            <Icon name="check" class="w-5 h-5 shrink-0" />
-            {successMsg}
-          </div>
-        {/if}
-
         <div class="space-y-5">
           <InputHotel
             label="Nombre de Usuario"
@@ -132,9 +128,3 @@
     </footer>
   </div>
 </div>
-
-<style>
-  :global(.font-display) {
-    font-family: var(--font-display);
-  }
-</style>

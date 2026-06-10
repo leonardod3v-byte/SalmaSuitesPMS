@@ -36,19 +36,18 @@ INSTALLED_APPS = [
     # Terceros
     'rest_framework',
     'rest_framework.authtoken',
-    'rest_framework_simplejwt',
     'corsheaders',
 
     # Apps del proyecto
-    'apps.users',
+    'apps.usuarios',
+    'apps.huespedes',
     'apps.habitaciones',
-    'apps.guests',
     'apps.reservaciones',
-    'apps.pagos',
     'apps.inventario',
     'apps.dashboard',
     'apps.reportes',
-    'apps.notificaciones',
+    'apps.bitacora',
+    'apps.configuracion',
 ]
 
 # ── Middleware ─────────────────────────────────────────────────────────────
@@ -93,7 +92,7 @@ DATABASES = {
 }
 
 # ── Modelo de usuario personalizado ───────────────────────────────────────
-AUTH_USER_MODEL = 'users.User'
+AUTH_USER_MODEL = 'usuarios.User'
 
 # ── Internacionalización ───────────────────────────────────────────────────
 LANGUAGE_CODE = 'es-ve'
@@ -112,8 +111,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # ── Django REST Framework ──────────────────────────────────────────────────
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'apps.users.authentication.CookieTokenAuthentication',  # Cookie primero
-        'rest_framework.authentication.TokenAuthentication',    # Header Authorization (fallback)
+        'apps.usuarios.authentication.CookieTokenAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',

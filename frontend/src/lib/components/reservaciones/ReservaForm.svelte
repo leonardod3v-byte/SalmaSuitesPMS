@@ -1,0 +1,286 @@
+<script lang="ts">
+    import { onMount } from 'svelte';
+    import { goto } from '$app/navigation';
+    import { toast } from '$lib/stores/toast';
+    import InputHotel from '$components/ui/Input.svelte';
+    import Select from '$components/ui/Select.svelte';
+    import DatePicker from '$components/ui/DatePicker.svelte';
+    import Button from '$components/ui/Button.svelte';
+    import Modal from '$components/ui/Modal.svelte';
+    import { createReservacion } from '$lib/services/reservaciones';
+    import { fetchHuespedes, checkDisponibilidad } from '$lib/services/huespedes';
+    import { fetchDisponibles } from '$lib/services/habitaciones';
+    import type { Huesped } from '$lib/types/huesped';
+    import type { Habitacion } from '$lib/types/habitacion';
+
+    let {
+        onclose = () => {},
+        habitacionPreseleccionada = null,
+    }: {
+        onclose?: () => void;
+        habitacionPreseleccionada?: number | null;
+    } = $props();
+
+    // Paso actual
+    let paso = $state(1);
+    let loading = $state(false);
+    let error = $state('');
+
+    // Paso 1: Huésped titular
+    let busquedaHuesped = $state('');
+    let huespedes = $state<Huesped[]>([]);
+    let titularSeleccionado = $state<Huesped | null>(null);
+
+    // Paso 2: Acompañantes
+    let busquedaAcompanante = $state('');
+    let huespedesAcompanantes = $state<Huesped[]>([]);
+    let acompanantes = $state<Huesped[]>([]);
+
+    // Paso 3: Habitación
+    let habitaciones = $state<Habitacion[]>([]);
+    let habitacionSeleccionada = $state<Habitacion | null>(null);
+    let filtroTipoHabitacion = $state('');
+    let tiposHabitacionDisponibles = $derived(
+        [...new Set(habitaciones.map(h => h.categoria_tipo))].sort()
+    );
+    let habitacionesFiltradas = $derived(
+        filtroTipoHabitacion
+            ? habitaciones.filter(h => h.categoria_tipo === filtroTipoHabitacion)
+            : habitaciones
+    );
+
+    // Paso 4: Fechas
+    let fechaEntrada = $state(new Date().toISOString().split('T')[0]);
+    let fechaSalida = $state(new Date(Date.now() + 86400000).toISOString().split('T')[0]);
+
+    // Paso 5: Pago
+    let modalidadPago = $state<'Contado' | 'Abono' | 'Crédito'>('Contado');
+    let metodoPago = $state<'Efectivo' | 'Tarjeta' | 'PagoMovil'>('Efectivo');
+    let numeroReferencia = $state('');
+    let montoAbonado = $state<number>(0);
+
+    // Paso 6
+    let requiereFactura = $state(false);
+
+    // Derivados
+    let noches = $derived(
+        Math.max(0, (new Date(fechaSalida).getTime() - new Date(fechaEntrada).getTime()) / 86400000)
+    );
+    let totalHabitacion = $derived(
+        noches * parseFloat(habitacionSeleccionada?.precio_por_noche || '0')
+    );
+    let totalPersonas = $derived(1 + acompanantes.length);
+
+    // Buscar huéspedes
+    async function buscarHuespedes() {
+        if (busquedaHuesped.length < 2) { huespedes = []; return; }
+        try {
+            huespedes = await fetchHuespedes(`search=${busquedaHuesped}`);
+        } catch { }
+    }
+
+    async function buscarAcompanantes() {
+        if (busquedaAcompanante.length < 2) { huespedesAcompanantes = []; return; }
+        try {
+            huespedesAcompanantes = await fetchHuespedes(`search=${busquedaAcompanante}`);
+        } catch { }
+    }
+
+    // Cargar habitaciones disponibles
+    async function cargarHabitaciones() {
+        try {
+            habitaciones = await fetchDisponibles();
+            if (habitacionPreseleccionada) {
+                habitacionSeleccionada = habitaciones.find(h => h.id === habitacionPreseleccionada) || null;
+            }
+        } catch { }
+    }
+
+    onMount(() => {
+        cargarHabitaciones();
+    });
+
+    async function siguientePaso() {
+        error = '';
+        if (paso === 1 && !titularSeleccionado) { error = 'Selecciona un huésped titular.'; return; }
+        if (paso === 2) {
+            // Validar acompañantes
+            for (const a of acompanantes) {
+                try {
+                    const d = await checkDisponibilidad(a.id);
+                    if (!d.disponible) { error = `El huésped ${a.nombres} ya tiene estancia activa.`; return; }
+                } catch { }
+            }
+        }
+        if (paso === 3 && !habitacionSeleccionada) { error = 'Selecciona una habitación.'; return; }
+        if (paso === 3 && habitacionSeleccionada && habitacionSeleccionada.capacidad_maxima < totalPersonas) {
+            error = `La habitación tiene capacidad para ${habitacionSeleccionada.capacidad_maxima} personas.`; return;
+        }
+        if (paso === 4 && noches <= 0) { error = 'La fecha de salida debe ser posterior a la de entrada.'; return; }
+        paso++;
+    }
+
+    async function confirmarReserva() {
+        loading = true;
+        error = '';
+        try {
+            const payload = {
+                id_huesped_titular: titularSeleccionado!.id,
+                id_habitacion: habitacionSeleccionada!.id,
+                fecha_entrada: fechaEntrada,
+                fecha_salida: fechaSalida,
+                modalidad_pago: modalidadPago,
+                requiere_factura: requiereFactura,
+                acompanantes: acompanantes.map(a => a.id),
+                metodo_pago_inicial: modalidadPago !== 'Crédito' ? metodoPago : null,
+                numero_referencia_inicial: numeroReferencia,
+                monto_abonado: modalidadPago === 'Abono' ? montoAbonado : 0,
+            };
+            await createReservacion(payload);
+            toast.success('Reservación creada correctamente.');
+            onclose();
+            goto('/reservaciones', { invalidateAll: true });
+        } catch (e: any) {
+            error = e.message || 'Error al crear reservación';
+        } finally {
+            loading = false;
+        }
+    }
+</script>
+
+<form onsubmit={(e) => { e.preventDefault(); paso < 5 ? siguientePaso() : confirmarReserva(); }} class="space-y-6">
+    {#if error}
+        <div class="flex items-center gap-2 p-3 rounded-xl bg-hotel-error/10 border border-hotel-error/20 text-hotel-error-light text-sm">{error}</div>
+    {/if}
+
+    <!-- Indicador de pasos -->
+    <div class="flex gap-2">
+        {#each [1, 2, 3, 4, 5] as p}
+            <div class="flex-1 h-1 rounded-full transition-all {p <= paso ? 'bg-hotel-gold' : 'bg-hotel-border'}"></div>
+        {/each}
+    </div>
+
+    {#if paso === 1}
+        <div class="p-5 rounded-2xl bg-hotel-bg/40 border border-hotel-border space-y-4">
+            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-gold">Paso 1 — Huésped Titular</p>
+            <InputHotel placeholder="Buscar por nombre o documento..." bind:value={busquedaHuesped} oninput={buscarHuespedes} />
+            {#if huespedes.length > 0}
+                <div class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
+                    {#each huespedes as h}
+                        <button type="button" onclick={() => titularSeleccionado = h} class="w-full text-left p-3 rounded-xl border transition-all {titularSeleccionado?.id === h.id ? 'border-hotel-gold bg-hotel-gold/5' : 'border-hotel-border hover:border-hotel-gold/50'}">
+                            <p class="font-bold text-sm">{h.nombres} {h.apellidos}</p>
+                            <p class="text-[10px] text-hotel-text-tertiary">{h.tipo_documento}-{h.numero_documento}</p>
+                        </button>
+                    {/each}
+                </div>
+            {/if}
+            {#if titularSeleccionado}
+                <div class="p-3 rounded-xl bg-hotel-gold/5 border border-hotel-gold/20">
+                    <p class="text-sm font-bold text-hotel-gold">Seleccionado: {titularSeleccionado.nombres} {titularSeleccionado.apellidos}</p>
+                </div>
+            {/if}
+        </div>
+    {:else if paso === 2}
+    <div class="p-5 rounded-2xl bg-hotel-bg/40 border border-hotel-border space-y-4">
+        <p class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-gold">Paso 2 — Acompañantes (opcional)</p>
+        <p class="text-xs text-hotel-text-secondary">Total personas: {totalPersonas}</p>
+        
+        <!-- Buscar acompañante -->
+        <InputHotel placeholder="Buscar por nombre o documento..." bind:value={busquedaAcompanante} oninput={buscarAcompanantes} />
+        
+        {#if huespedesAcompanantes.length > 0}
+            <div class="space-y-2 max-h-36 overflow-y-auto custom-scrollbar">
+                {#each huespedesAcompanantes as h}
+                    {#if h.id !== titularSeleccionado?.id && !acompanantes.find(a => a.id === h.id)}
+                        <button type="button" onclick={() => acompanantes = [...acompanantes, h]} class="w-full text-left p-3 rounded-xl border border-hotel-border hover:border-hotel-gold/50 transition-all">
+                            <p class="font-bold text-sm">{h.nombres} {h.apellidos}</p>
+                            <p class="text-[10px] text-hotel-text-tertiary">{h.tipo_documento}-{h.numero_documento}</p>
+                        </button>
+                    {/if}
+                {/each}
+            </div>
+        {/if}
+        
+        <!-- Lista de acompañantes seleccionados -->
+        {#if acompanantes.length > 0}
+            <div class="space-y-2">
+                <p class="text-[10px] font-bold uppercase text-hotel-text-tertiary">Acompañantes agregados:</p>
+                {#each acompanantes as a}
+                    <div class="flex items-center justify-between p-2 rounded-lg bg-hotel-gold/5 border border-hotel-gold/20">
+                        <div>
+                            <p class="text-sm font-bold">{a.nombres} {a.apellidos}</p>
+                            <p class="text-[10px] text-hotel-text-tertiary">{a.tipo_documento}-{a.numero_documento}</p>
+                        </div>
+                        <button type="button" onclick={() => acompanantes = acompanantes.filter(x => x.id !== a.id)} class="text-hotel-error-light text-xs font-bold">Quitar</button>
+                    </div>
+                {/each}
+            </div>
+        {/if}
+    </div>
+    {:else if paso === 3}
+    <div class="p-5 rounded-2xl bg-hotel-bg/40 border border-hotel-border space-y-4">
+        <p class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-gold">Paso 3 — Habitación</p>
+        
+        <!-- Filtro por tipo -->
+        <Select 
+            label="Filtrar por tipo" 
+            options={[
+                { value: '', label: 'Todos los tipos' },
+                ...tiposHabitacionDisponibles.map(t => ({ value: t, label: t }))
+            ]} 
+            bind:value={filtroTipoHabitacion} 
+        />
+        
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {#each habitacionesFiltradas as h}
+                <button type="button" onclick={() => habitacionSeleccionada = h} class="p-3 rounded-xl border text-left transition-all {habitacionSeleccionada?.id === h.id ? 'border-hotel-gold bg-hotel-gold/5' : 'border-hotel-border hover:border-hotel-gold/50'}">
+                    <p class="font-bold text-sm">#{h.numero}</p>
+                    <p class="text-[10px] text-hotel-text-tertiary">{h.categoria_tipo}</p>
+                    <p class="text-[10px] text-hotel-gold">${h.precio_por_noche}/noche</p>
+                    <p class="text-[9px] text-hotel-text-tertiary">Cap: {h.capacidad_maxima} pers.</p>
+                </button>
+            {/each}
+        </div>
+    </div>
+    {:else if paso === 4}
+        <div class="p-5 rounded-2xl bg-hotel-bg/40 border border-hotel-border space-y-4">
+            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-gold">Paso 4 — Fechas</p>
+            <div class="grid grid-cols-2 gap-4">
+                <DatePicker label="Entrada" bind:value={fechaEntrada} />
+                <DatePicker label="Salida" bind:value={fechaSalida} />
+            </div>
+            <div class="flex gap-4 text-sm">
+                <p class="text-hotel-text-secondary">Noches: <span class="font-bold text-hotel-text-primary">{noches}</span></p>
+                <p class="text-hotel-text-secondary">Total: <span class="font-bold text-hotel-gold">${totalHabitacion.toFixed(2)}</span></p>
+            </div>
+        </div>
+    {:else if paso === 5}
+        <div class="p-5 rounded-2xl bg-hotel-bg/40 border border-hotel-border space-y-4">
+            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-gold">Paso 5 — Pago</p>
+            <Select label="Modalidad" options={[{value:'Contado',label:'Contado'},{value:'Abono',label:'Abono'},{value:'Crédito',label:'Crédito'}]} bind:value={modalidadPago} />
+            {#if modalidadPago !== 'Crédito'}
+                <Select label="Método de pago" options={[{value:'Efectivo',label:'Efectivo'},{value:'Tarjeta',label:'Tarjeta'},{value:'PagoMovil',label:'Pago Móvil'}]} bind:value={metodoPago} />
+                {#if metodoPago !== 'Efectivo'}
+                    <InputHotel label="Nº Referencia" bind:value={numeroReferencia} />
+                {/if}
+            {/if}
+            {#if modalidadPago === 'Abono'}
+                <InputHotel label="Monto a abonar" type="number" bind:value={montoAbonado} />
+            {/if}
+            <label class="flex items-center gap-2 text-sm text-hotel-text-secondary">
+                <input type="checkbox" bind:checked={requiereFactura} class="rounded border-hotel-border" />
+                ¿Requiere factura legal?
+            </label>
+        </div>
+    {/if}
+
+    <div class="flex gap-3 pt-4 border-t border-hotel-border/50">
+        {#if paso > 1}
+            <Button type="button" variant="ghost" onclick={() => paso--}>Anterior</Button>
+        {/if}
+        <Button type="submit" variant="gold" loading={loading}>
+            {paso < 5 ? 'Siguiente' : 'Confirmar Reservación'}
+        </Button>
+        <Button type="button" variant="ghost" onclick={onclose}>Cancelar</Button>
+    </div>
+</form>

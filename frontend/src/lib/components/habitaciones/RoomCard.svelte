@@ -1,90 +1,126 @@
 <script lang="ts">
-  import Icon from '$lib/components/Icons.svelte';
+    import { goto } from '$app/navigation';
+    import { toast } from '$lib/stores/toast';
+    import { cambiarEstadoHabitacion } from '$lib/services/habitaciones';
+    import type { Habitacion } from '$lib/types/habitacion';
+    import RoomStatusBadge from './RoomStatusBadge.svelte';
 
-  let { hab, onclick } = $props();
+    let {
+        habitacion,
+        onchange = () => {},
+    }: {
+        habitacion: Habitacion;
+        onchange?: () => void;
+    } = $props();
 
-  type EstadoHabitacion = 'libre' | 'limpia' | 'sucia' | 'ocupada' | 'mantenimiento' | 'construccion';
+    const MEDIA_URL = import.meta.env.VITE_MEDIA_URL ?? 'http://localhost:8000';
 
-  const ESTADOS = {
-    libre:         { label: 'Disponible', color: 'var(--color-hotel-success-light)', bg: 'rgba(45,106,79,0.1)' },
-    limpia:        { label: 'Limpia',     color: 'var(--color-hotel-success-light)', bg: 'rgba(45,106,79,0.1)' },
-    sucia:         { label: 'Sucia',      color: 'var(--color-hotel-gold)',        bg: 'rgba(179,142,93,0.1)' },
-    ocupada:       { label: 'Ocupada',    color: 'var(--color-hotel-error-light)', bg: 'rgba(155,34,38,0.1)' },
-    mantenimiento: { label: 'Mantenimiento', color: 'var(--color-hotel-vip-light)', bg: 'rgba(88,47,126,0.1)' },
-    construccion:  { label: 'Obra',       color: 'var(--color-hotel-text-tertiary)', bg: 'rgba(130,112,102,0.1)' },
-  };
+    const imagenSrc = $derived(
+        habitacion.imagen_url
+            ? `${MEDIA_URL}${habitacion.imagen_url}`
+            : 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&q=80&w=600'
+    );
 
-  const cfg = $derived(ESTADOS[hab.estado as EstadoHabitacion] ?? ESTADOS.libre);
-  const tipoLabel = $derived(hab.tipo_nombre ?? 'Standard Suite');
-  const precioFormateado = $derived(
-    hab.tipo_precio?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? '0.00'
-  );
-  const capacidadTexto = $derived(hab.capacidad_maxima ? `${hab.capacidad_maxima} pers.` : 'N/A');
+    const precioFormateado = $derived(
+        parseFloat(habitacion.precio_por_noche).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    );
 
-  const roomImage = "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&q=80&w=600";
+    function verDetalle() {
+        goto(`/habitaciones/${habitacion.id}`);
+    }
+
+    async function marcarLimpia(e: MouseEvent) {
+        e.stopPropagation();
+        try {
+            await cambiarEstadoHabitacion(habitacion.id, 'Limpia');
+            toast.success('Habitación marcada como Limpia.');
+            onchange();
+        } catch (err: any) {
+            toast.error(err.message || 'Error al cambiar estado.');
+        }
+    }
+
+    async function enviarMantenimiento(e: MouseEvent) {
+        e.stopPropagation();
+        try {
+            await cambiarEstadoHabitacion(habitacion.id, 'Mantenimiento');
+            toast.success('Habitación enviada a Mantenimiento.');
+            onchange();
+        } catch (err: any) {
+            toast.error(err.message || 'Error al cambiar estado.');
+        }
+    }
 </script>
 
-<button
-  class="group relative flex flex-col w-full bg-hotel-surface border border-hotel-border rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-hotel-gold/50 hover:shadow-hotel-lg focus:outline-none focus:ring-2 focus:ring-hotel-gold/50"
-  {onclick}
-  aria-label="Habitación {hab.numero}"
+<div
+    onclick={verDetalle}
+    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') verDetalle(); }}
+    role="button"
+    tabindex="0"
+    class="group relative flex flex-col w-full bg-hotel-surface border border-hotel-border rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-hotel-gold/50 hover:shadow-hotel-lg focus:outline-none focus:ring-2 focus:ring-hotel-gold/50 text-left cursor-pointer"
+    aria-label="Habitación {habitacion.numero}"
 >
-  <!-- Imagen más alta para dar protagonismo -->
-  <div class="relative h-48 w-full overflow-hidden">
-    <img 
-      src={roomImage} 
-      alt="Habitación {tipoLabel}" 
-      loading="lazy" 
-      class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-    />
-    <div class="absolute inset-0 bg-linear-to-t from-black/80 via-black/30 to-transparent"></div>
-    
-    <!-- Badge de estado -->
-    <div 
-      class="absolute top-4 right-4 px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider backdrop-blur-md border shadow-sm"
-      style="background: {cfg.bg}; color: {cfg.color}; border-color: {cfg.color}66"
-    >
-      {cfg.label}
-    </div>
+    <!-- Imagen -->
+    <div class="relative h-48 w-full overflow-hidden">
+        <img
+            src={imagenSrc}
+            alt="Habitación {habitacion.categoria_tipo}"
+            loading="lazy"
+            class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+        />
+        <div class="absolute inset-0 bg-linear-to-t from-black/80 via-black/30 to-transparent"></div>
 
-    <!-- Número de habitación (más grande) y piso -->
-    <div class="absolute bottom-4 left-4">
-      <span class="text-4xl font-display font-bold text-white italic drop-shadow-md">#{hab.numero}</span>
-      <div class="flex items-center gap-1 mt-1 text-white/80 text-xs">
-        <Icon name="habitaciones" class="w-3.5 h-3.5" />
-        <span>Piso {hab.piso}</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Información detallada con más espacio -->
-  <div class="p-5 flex flex-col gap-4">
-    <div class="flex justify-between items-start">
-      <div class="flex-1">
-        <h3 class="text-xs font-bold text-hotel-text-primary tracking-wide text-left">{tipoLabel}</h3>
-        <div class="flex items-center gap-4 mt-2 text-sm text-hotel-text-tertiary">
-          <span class="flex items-center gap-1.5">
-            <Icon name="huespedes" class="w-4 h-4" />
-            <span>{capacidadTexto}</span>
-          </span>
-          <!-- Puedes agregar aquí otros campos como vistas, wifi, etc. si los tuvieras -->
+        <!-- Badge de estado -->
+        <div class="absolute top-4 right-4">
+            <RoomStatusBadge estado={habitacion.estado} />
         </div>
-      </div>
-      <div class="text-right">
-        <p class="text-2xl font-bold text-hotel-gold leading-tight">${precioFormateado}</p>
-        <p class="text-[10px] text-hotel-text-tertiary uppercase tracking-wider">/ noche</p>
-      </div>
+
+        <!-- Número y piso -->
+        <div class="absolute bottom-4 left-4">
+            <span class="text-4xl font-display font-bold text-white italic drop-shadow-md">#{habitacion.numero}</span>
+            <div class="flex items-center gap-1 mt-1 text-white/80 text-xs">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                <span>Piso {habitacion.piso}</span>
+            </div>
+        </div>
     </div>
 
-    <!-- Amenidades -->
-    <div class="flex items-center gap-4 pt-3 border-t border-hotel-border/60">
-      {#if hab.tiene_minibar}
-        <div class="flex items-center gap-1.5 text-hotel-text-secondary group-hover:text-hotel-gold transition-colors" title="Minibar">
-          <Icon name="minibar" class="w-4.5 h-4.5" />
-          <span class="text-xs font-medium uppercase tracking-wide">Minibar</span>
+    <!-- Información -->
+    <div class="p-5 flex flex-col gap-4">
+        <div class="flex justify-between items-start">
+            <div class="flex-1">
+                <h3 class="text-sm font-bold text-hotel-text-primary tracking-wide">{habitacion.categoria_tipo}</h3>
+                <div class="flex items-center gap-4 mt-2 text-xs text-hotel-text-tertiary">
+                    <span class="flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                        {habitacion.capacidad_maxima} pers.
+                    </span>
+                    <span class="flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                        {habitacion.cantidad_camas} camas
+                    </span>
+                </div>
+            </div>
+            <div class="text-right">
+                <p class="text-2xl font-bold text-hotel-gold leading-tight">${precioFormateado}</p>
+                <p class="text-[10px] text-hotel-text-tertiary uppercase tracking-wider">/ noche</p>
+            </div>
         </div>
-      {/if}
-      <!-- Si no hay amenidades, se puede dejar un espacio vacío o no mostrar nada -->
+
+        <!-- Acciones -->
+        <div class="flex gap-2 pt-3 border-t border-hotel-border/60">
+            {#if habitacion.estado === 'Sucia'}
+                <button onclick={marcarLimpia} class="flex-1 text-[10px] font-bold uppercase tracking-wider px-3 py-2 rounded-lg bg-hotel-success/10 text-hotel-success-light border border-hotel-success/20 hover:bg-hotel-success/20 transition-all">
+                    Marcar Limpia
+                </button>
+            {:else if habitacion.estado === 'Limpia'}
+                <button onclick={enviarMantenimiento} class="flex-1 text-[10px] font-bold uppercase tracking-wider px-3 py-2 rounded-lg bg-hotel-error/10 text-hotel-error-light border border-hotel-error/20 hover:bg-hotel-error/20 transition-all">
+                    Mantenimiento
+                </button>
+            {/if}
+            <span class="flex-1 text-[10px] font-bold uppercase tracking-wider px-3 py-2 rounded-lg bg-hotel-bg/50 text-hotel-text-secondary border border-hotel-border group-hover:border-hotel-gold/50 group-hover:text-hotel-gold transition-all text-center">
+                Detalle
+            </span>
+        </div>
     </div>
-  </div>
-</button>
+</div>

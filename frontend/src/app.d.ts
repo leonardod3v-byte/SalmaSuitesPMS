@@ -1,5 +1,5 @@
 import { type User } from '$lib/types/auth';
-import { icons } from '$lib/components/Icons.svelte';
+import { icons } from '$components/ui/Icons.svelte';
 
 declare global {
     namespace App {

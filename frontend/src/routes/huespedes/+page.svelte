@@ -1,176 +1,139 @@
 <script lang="ts">
-  import type { PageData } from './$types';
-  import { invalidateAll, goto } from '$app/navigation';
-  import { page } from '$app/stores';
-  import { auth } from '$lib/stores/auth';
-  import { type HuespedListItem, type Huesped } from '$lib/services/huespedes';
-  import GuestTable from '$lib/components/huespedes/GuestTable.svelte';
-  import GuestModal from '$lib/components/huespedes/GuestModal.svelte';
-  import Button from '$lib/components/Button.svelte';
-  import Icon from '$lib/components/Icons.svelte';
-  import InputHotel from '$lib/components/InputHotel.svelte';
-  import PageHeader from '$lib/components/PageHeader.svelte';
+    import { onMount } from 'svelte';
+    import PageHeader from '$components/ui/PageHeader.svelte';
+    import Button from '$components/ui/Button.svelte';
+    import Modal from '$components/ui/Modal.svelte';
+    import Loading from '$components/ui/Loading.svelte';
+    import FilterBar from '$components/ui/FilterBar.svelte';
+    import Icon from '$components/ui/Icons.svelte';
+    import GuestTable from '$components/huespedes/GuestTable.svelte';
+    import GuestForm from '$components/huespedes/GuestForm.svelte';
+    import { fetchHuespedes } from '$lib/services/huespedes';
+    import type { Huesped } from '$lib/types/huesped';
 
-  let { data }: { data: PageData } = $props();
+    let huespedes = $state<Huesped[]>([]);
+    let cargando = $state(true);
+    let error = $state('');
+    let mostrarForm = $state(false);
+    let busqueda = $state('');
+    let soloVip = $state(false);
 
-  // Los datos vienen como array gracias al load corregido
-  let huespedes = $state<HuespedListItem[]>([]);
-  // Sincronizar cuando data.huespedes cambie (filtros, recarga)
-  $effect(() => {
-    huespedes = data.huespedes ?? [];
-  });
+    let filtrados = $derived(
+        huespedes.filter(h => {
+            const matchBusqueda = !busqueda.trim() ||
+                h.nombres.toLowerCase().includes(busqueda.toLowerCase()) ||
+                h.apellidos.toLowerCase().includes(busqueda.toLowerCase()) ||
+                h.numero_documento.includes(busqueda);
+            const matchVip = !soloVip || h.categoria === 'VIP';
+            return matchBusqueda && matchVip;
+        })
+    );
 
-  // Para evitar la advertencia "captura solo el valor inicial", usamos $derived
-  // o sincronizamos con $effect. Pero como son valores que vienen de la URL,
-  // los tomamos directamente de $page.url.searchParams
-  let busqueda = $state('');
-  let soloVip = $state(false);
+    let tieneFiltros = $derived(soloVip);
 
-  // Sincronizar con los parámetros de la URL cada vez que cambia la página
-  $effect(() => {
-    const params = $page.url.searchParams;
-    busqueda = params.get('search') ?? '';
-    soloVip = params.get('vip') === 'true';
-  });
-
-  const tieneFiltros = $derived(busqueda !== '' || soloVip);
-  const isAdmin = $derived($auth?.user?.role === 'admin');
-
-  let timer: ReturnType<typeof setTimeout>;
-  
-  function updateURL() {
-    const params = new URLSearchParams($page.url.searchParams);
-    if (busqueda.trim()) params.set('search', busqueda.trim()); else params.delete('search');
-    if (soloVip) params.set('vip', 'true'); else params.delete('vip');
-    
-    goto(`?${params.toString()}`, { 
-      keepFocus: true, 
-      replaceState: true, 
-      noScroll: true 
+    onMount(async () => {
+        try {
+            huespedes = await fetchHuespedes();
+        } catch (e: any) {
+            error = e.message || 'Error al cargar huéspedes';
+        } finally {
+            cargando = false;
+        }
     });
-  }
 
-  function onSearch() {
-    clearTimeout(timer);
-    timer = setTimeout(updateURL, 300);
-  }
+    async function refrescar() {
+        try {
+            huespedes = await fetchHuespedes();
+        } catch { }
+    }
 
-  function resetFiltros() {
-    busqueda = '';
-    soloVip = false;
-    goto($page.url.pathname);
-  }
+    function resetFiltros() {
+        soloVip = false;
+        busqueda = '';
+    }
 
-  let modalCrear = $state(false);
-  let huespedEditando = $state<Huesped | null>(null);
+    function exportarCSV() {
+        const data = filtrados;
+        if (data.length === 0) return;
 
-  function onVipToggled(id: number, nuevoEstado: boolean) {
-    huespedes = huespedes.map(h => h.id === id ? { ...h, es_vip: nuevoEstado } : h);
-  }
+        const headers = ['Nombres', 'Apellidos', 'Tipo Doc', 'Nº Documento', 'Nacionalidad', 'Teléfono', 'Email', 'Tipo Cliente', 'Categoría', 'Crédito'];
+        const rows = data.map(h => [
+            h.nombres,
+            h.apellidos,
+            h.tipo_documento,
+            h.numero_documento,
+            h.nacionalidad,
+            h.telefono,
+            h.email,
+            h.tipo_cliente_profesion,
+            h.categoria,
+            h.credito_autorizado ? `Sí (${h.limite_credito})` : 'No'
+        ]);
 
-  // Exportar a CSV (datos actualmente visibles en la tabla)
-  function exportarCSV() {
-    const columnas = ['ID', 'Nombre completo', 'Documento', 'Teléfono', 'Email', 'VIP', 'Fecha registro'];
-    const filas = huespedes.map(h => [
-      h.id,
-      h.nombre_completo,
-      h.documento_formateado,
-      h.telefono,
-      h.email,
-      h.es_vip ? 'Sí' : 'No',
-      new Date(h.created_at).toLocaleDateString('es-VE')
-    ]);
-    const csvContent = [columnas, ...filas].map(row => row.join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.href = url;
-    link.setAttribute('download', `huespedes_${new Date().toISOString().slice(0,19)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }
+        const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `huespedes_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
 </script>
 
 <svelte:head>
-  <title>Gestión de Huéspedes | SalmaSuitesPMS</title>
+    <title>Gestión de Huéspedes | SalmaSuitesPMS</title>
 </svelte:head>
 
-<div class="max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-
-  <PageHeader title="Huéspedes" subtitle={`${huespedes.length} Registros`}>
-    {#if isAdmin}
-      <div class="flex items-center gap-3">
-        <Button variant="secondary" onclick={exportarCSV}>
-          <Icon name="export" class="w-4 h-4" />
-          Exportar registro
+<PageHeader title="Huéspedes" subtitle="{filtrados.length} Registros">
+    <div class="flex items-center gap-3">
+        <Button variant="secondary" size="md" onclick={exportarCSV}>
+            <span class="flex items-center gap-1.5">
+                <Icon name="export" class="w-4 h-4" />
+                Exportar
+            </span>
         </Button>
-        <Button variant="gold" onclick={() => modalCrear = true}>
-          <Icon name="plus" class="w-4 h-4" />
-          Registrar huésped
+        <Button variant="gold" size="md" onclick={() => mostrarForm = true}>
+            <span class="flex items-center gap-1.5">
+                <Icon name="plus" class="w-4 h-4" />
+                Nuevo huésped
+            </span>
         </Button>
-      </div>
-    {/if}
-  </PageHeader>
-
-  <section class="grid grid-cols-1 lg:grid-cols-4 gap-4 items-center bg-hotel-surface/40 p-2 rounded-2xl border border-hotel-border shadow-hotel-sm backdrop-blur-md">
-    
-    <div class="lg:col-span-2">
-      <InputHotel
-        type="search"
-        placeholder="Buscar por nombre, documento o contacto..."
-        bind:value={busqueda}
-        oninput={onSearch}
-      />
     </div>
+</PageHeader>
 
-    <div class="flex items-center gap-2 lg:justify-end lg:col-span-2 px-2">
-      <button
-        onclick={() => { soloVip = !soloVip; updateURL(); }}
-        class="flex-1 lg:flex-none inline-flex items-center justify-center gap-2 px-6 h-12 rounded-xl text-[10px] font-black
-              uppercase tracking-widest border transition-all duration-300
-              {soloVip
-                ? 'bg-hotel-vip/20 border-hotel-vip/50 text-hotel-vip-light'
-                : 'bg-hotel-bg border-hotel-border text-hotel-text-tertiary hover:border-hotel-gold/50'}"
-      >
-        <Icon name="star" class="w-3.5 h-3.5 {soloVip ? 'fill-hotel-vip' : 'fill-transparent stroke-current'}" />
-        Filtrar VIP
-      </button>
-
-      {#if tieneFiltros}
-        <button 
-          onclick={resetFiltros}
-          class="h-12 px-4 text-[9px] font-black uppercase tracking-widest text-hotel-error-light hover:bg-hotel-error/5 rounded-xl transition-all"
-        >
-          Limpiar
-        </button>
-      {/if}
+{#if cargando}
+    <Loading type="dashboard" message="Cargando huéspedes..." />
+{:else if error}
+    <div class="text-center p-8 bg-hotel-error/5 border border-hotel-error/20 rounded-2xl">
+        <p class="text-hotel-error-light font-bold uppercase tracking-widest text-xs mb-4">{error}</p>
+        <Button variant="gold" size="sm" onclick={() => window.location.reload()}>Reintentar</Button>
     </div>
-  </section>
+{:else}
+    <div class="space-y-6">
+        <FilterBar placeholder="Buscar por nombre o documento..." bind:busqueda tieneFiltros onclear={resetFiltros}>
+            <button
+                onclick={() => soloVip = !soloVip}
+                class="flex-1 lg:flex-none inline-flex items-center justify-center gap-2 px-6 h-12 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all duration-300
+                {soloVip
+                    ? 'bg-hotel-vip/20 border-hotel-vip/50 text-hotel-vip-light'
+                    : 'bg-hotel-bg border-hotel-border text-hotel-text-tertiary hover:border-hotel-gold/50'}"
+            >
+                <svg class="w-3.5 h-3.5 {soloVip ? 'fill-hotel-vip' : 'fill-transparent stroke-current'}" viewBox="0 0 24 24">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+                Filtrar VIP
+            </button>
+        </FilterBar>
 
-  <main class="min-h-[400px]">
-    <GuestTable
-      {huespedes}
-      {onVipToggled}
-      onVerDetalle={(h) => huespedEditando = h as unknown as Huesped}
-    />
-  </main>
-</div>
-
-{#if modalCrear}
-  <GuestModal
-    modo="crear"
-    onclose={() => modalCrear = false}
-    onupdated={() => { modalCrear = false; invalidateAll(); }}
-  />
+        <div class="bg-hotel-surface rounded-2xl border border-hotel-border shadow-hotel-sm overflow-hidden">
+            <GuestTable huespedes={filtrados} />
+        </div>
+    </div>
 {/if}
 
-{#if huespedEditando}
-  <GuestModal
-    modo="editar"
-    data={huespedEditando}
-    onclose={() => huespedEditando = null}
-    onupdated={() => { huespedEditando = null; invalidateAll(); }}
-  />
+{#if mostrarForm}
+    <Modal title="Registrar Huésped" subtitle="Completa todos los campos requeridos" onclose={() => mostrarForm = false}>
+        <GuestForm onclose={() => { mostrarForm = false; refrescar(); }} />
+    </Modal>
 {/if}

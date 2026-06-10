@@ -2,13 +2,17 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('', views.reservas_list, name='reservas_list'),
-    path('<int:pk>/', views.reserva_detail, name='reserva_detail'),
-    path('<int:pk>/no-show/', views.registrar_no_show, name='registrar_no_show'),
-    path('<int:pk>/checkin/', views.ejecutar_checkin, name='ejecutar_checkin'),
-    path('<int:pk>/checkout/', views.ejecutar_checkout, name='ejecutar_checkout'),
-    path('<int:pk>/cancelar/', views.cancelar_reserva, name='cancelar_reserva'),
-    path('<int:pk>/consumo/', views.agregar_consumo, name='agregar_consumo'),
-    path('<int:pk>/cambiar-habitacion/', views.cambiar_habitacion, name='cambiar_habitacion'),
-    path('actividades/', views.actividades_recientes, name='actividades_recientes'),
+    # CRUD de reservaciones
+    path('', views.lista_reservaciones, name='lista_reservaciones'),
+    path('<int:pk>/', views.detalle_reservacion, name='detalle_reservacion'),
+    # Acciones
+    path('<int:pk>/checkin/', views.checkin_reservacion, name='checkin_reservacion'),
+    path('<int:pk>/checkout/', views.checkout_reservacion, name='checkout_reservacion'),
+    path('<int:pk>/cancelar/', views.cancelar_reservacion, name='cancelar_reservacion'),
+    path('<int:pk>/noshow/', views.noshow_reservacion, name='noshow_reservacion'),
+    path('<int:pk>/resumen-checkout/', views.resumen_checkout, name='resumen_checkout'),
+    # Consumos asociados a una reservación
+    path('<int:pk>/consumos/', views.consumos_reservacion, name='consumos_reservacion'),
+    # Pagos asociados a una reservación (lista y creación)
+    path('<int:pk>/pagos/', views.pagos_reservacion, name='pagos_reservacion'),
 ]

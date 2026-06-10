@@ -2,31 +2,37 @@ import { writable } from 'svelte/store';
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
-interface Toast {
-  id: number;
-  message: string;
-  type: ToastType;
-  duration: number;
+export interface Toast {
+    id: number;
+    message: string;
+    type: ToastType;
+    duration: number;
 }
 
 function createToastStore() {
-  const { subscribe, update } = writable<Toast[]>([]);
+    const { subscribe, update } = writable<Toast[]>([]);
+    let nextId = 0;
 
-  return {
-    subscribe,
-    send: (message: string, type: ToastType = 'info', duration = 4000) => {
-      const id = Math.floor(Math.random() * 10000);
-      update((list) => [...list, { id, message, type, duration }]);
-      
-      setTimeout(() => {
-        update((list) => list.filter((t) => t.id !== id));
-      }, duration);
-    },
-    // Método manual para cerrar
-    dismiss: (id: number) => {
-      update((list) => list.filter((t) => t.id !== id));
+    function add(message: string, type: ToastType = 'info', duration: number = 4000) {
+        const id = nextId++;
+        update(toasts => [...toasts, { id, message, type, duration }]);
+        if (duration > 0) {
+            setTimeout(() => dismiss(id), duration);
+        }
     }
-  };
+
+    function dismiss(id: number) {
+        update(toasts => toasts.filter(t => t.id !== id));
+    }
+
+    return {
+        subscribe,
+        success: (msg: string) => add(msg, 'success'),
+        error: (msg: string) => add(msg, 'error', 6000),
+        info: (msg: string) => add(msg, 'info'),
+        warning: (msg: string) => add(msg, 'warning', 5000),
+        dismiss,
+    };
 }
 
 export const toast = createToastStore();
