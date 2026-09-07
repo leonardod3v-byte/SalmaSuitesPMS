@@ -31,6 +31,9 @@ class ReservacionHuespedesSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class ConsumoSerializer(serializers.ModelSerializer):
+    producto_nombre = serializers.CharField(source='producto.nombre', read_only=True, default=None)
+    producto_precio = serializers.CharField(source='producto.precio_venta', read_only=True, default=None)
+
     class Meta:
         model = Consumo
         fields = '__all__'

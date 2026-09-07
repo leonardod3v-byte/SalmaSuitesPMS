@@ -18,6 +18,7 @@ class Producto(models.Model):
     stock_minimo = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     unidad = models.CharField(max_length=20)  # ej: unidad, kg, porción
     activo = models.BooleanField(default=True)
+    maneja_stock = models.BooleanField(default=True)
 
     class Meta:
         db_table = 'productos'

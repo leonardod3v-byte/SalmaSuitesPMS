@@ -1,10 +1,15 @@
-from datetime import date, timedelta
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from django.shortcuts import get_object_or_404
+from django.http import FileResponse
+from datetime import date, timedelta
+
 from . import services
 from .serializers import ResumenDiarioSerializer, IngresoPeriodoSerializer
+from .pdf_services import generar_hoja_huesped, generar_registro_reservaciones_semanal, generar_cierre_caja_pdf
+from apps.reservaciones.models import Reservacion
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -53,3 +58,42 @@ def ingresos_periodo(request):
     data = services.obtener_ingresos_por_periodo(inicio, fin, metodo=metodo)
     serializer = IngresoPeriodoSerializer(data, many=True)
     return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def hoja_huesped_pdf(request, reserva_id):
+    reserva = get_object_or_404(Reservacion, pk=reserva_id)
+    buffer = generar_hoja_huesped(reserva)
+    return FileResponse(buffer, as_attachment=True, filename=f'hoja_huesped_{reserva_id}.pdf')
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def registro_reservaciones_pdf(request):
+    fecha_str = request.query_params.get('fecha')
+    if fecha_str:
+        try:
+            fecha = date.fromisoformat(fecha_str)
+        except ValueError:
+            fecha = date.today()
+    else:
+        fecha = date.today()
+
+    buffer = generar_registro_reservaciones_semanal(fecha)
+    return FileResponse(buffer, as_attachment=True, filename=f'registro_reservaciones_{fecha.isoformat()}.pdf')
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def cierre_caja_pdf(request):
+    fecha_str = request.query_params.get('fecha')
+    if not fecha_str:
+        return Response({'error': 'Parámetro fecha requerido (YYYY-MM-DD).'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        fecha = date.fromisoformat(fecha_str)
+    except ValueError:
+        return Response({'error': 'Formato de fecha inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    buffer = generar_cierre_caja_pdf(fecha)
+    return FileResponse(buffer, as_attachment=True, filename=f'cierre_caja_{fecha.isoformat()}.pdf')

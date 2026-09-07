@@ -19,7 +19,7 @@
 
   const logout = () => auth.logout();
 
-  type MenuKey = 'dashboard' | 'habitaciones' | 'huespedes' | 'reservaciones' | 'inventario' | 'reportes' | 'config';
+  type MenuKey = 'dashboard' | 'habitaciones' | 'huespedes' | 'reservaciones' | 'inventario' | 'reportes' | 'user' | 'config';
   const menuItems: { key: MenuKey; label: string; href: string; adminOnly?: boolean }[] = [
     { key: 'dashboard',   label: 'Dashboard',    href: '/dashboard' },
     { key: 'habitaciones', label: 'Habitaciones', href: '/habitaciones' },
@@ -27,6 +27,7 @@
     { key: 'reservaciones', label: 'Reservas', href: '/reservaciones' },
     { key: 'inventario',   label: 'Inventario',   href: '/inventario' },
     { key: 'reportes',     label: 'Reportes',     href: '/reportes' },
+    { key: 'user',     label: 'Usuarios',     href: '/usuarios', adminOnly: true },
     { key: 'config',       label: 'Configuración', href: '/configuracion', adminOnly: true },
   ];
 </script>

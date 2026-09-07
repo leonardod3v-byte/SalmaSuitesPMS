@@ -45,6 +45,8 @@ export interface Consumo {
     total: string;
     tipo_consumo: string;
     producto_id: number | null;
+    producto_nombre: string | null;
+    producto_precio: string | null;
 }
 
 export interface Pago {

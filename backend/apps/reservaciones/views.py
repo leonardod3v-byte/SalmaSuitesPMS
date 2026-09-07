@@ -153,12 +153,18 @@ def consumos_reservacion(request, pk):
     elif request.method == 'POST':
         data = request.data
         try:
+            producto = None
+            if data.get('producto_id'):
+                from apps.inventario.models import Producto
+                producto = get_object_or_404(Producto, pk=data['producto_id'])
+
             consumo = services.agregar_consumo(
                 reserva_id=pk,
                 tipo=data['tipo_consumo'],
                 descripcion=data.get('descripcion', ''),
                 cantidad=data['cantidad'],
                 precio_unitario=data['precio_unitario'],
+                producto=producto,
                 usuario=request.user
             )
             return Response(ConsumoSerializer(consumo).data, status=status.HTTP_201_CREATED)
@@ -192,3 +198,16 @@ def pagos_reservacion(request, pk):
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except KeyError as e:
             return Response({'error': f'Falta campo requerido: {e}'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def saldo_reservacion(request, pk):
+    reserva = get_object_or_404(Reservacion, pk=pk)
+    return Response({
+        'total_habitacion': str(reserva.total_habitacion),
+        'total_consumos': str(reserva.monto_total_consumos),
+        'total_final': str(reserva.monto_total_final),
+        'monto_pagado': str(reserva.monto_pagado),
+        'saldo_pendiente': str(reserva.saldo_pendiente),
+    })

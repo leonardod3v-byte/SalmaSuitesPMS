@@ -75,19 +75,27 @@ def profile_view(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def cambiar_password_view(request):
-    serializer = CambioPasswordSerializer(data=request.data)
-    if not serializer.is_valid():
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     user = request.user
-    try:
-        services.cambiar_password(
-            user,
-            serializer.validated_data['old_password'],
-            serializer.validated_data['new_password']
-        )
-        return Response({'message': 'Contraseña actualizada correctamente.'})
-    except ValidationError as e:
-        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    old_password = request.data.get('old_password')
+    new_password = request.data.get('new_password')
+    confirm_password = request.data.get('confirm_password')
+
+    if not old_password or not new_password or not confirm_password:
+        return Response({'error': 'Todos los campos son obligatorios.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if new_password != confirm_password:
+        return Response({'error': 'Las contraseñas no coinciden.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if len(new_password) < 8:
+        return Response({'error': 'La contraseña debe tener al menos 8 caracteres.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not user.check_password(old_password):
+        return Response({'error': 'La contraseña actual es incorrecta.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    user.set_password(new_password)
+    user.save()
+
+    return Response({'message': 'Contraseña actualizada correctamente.'})
 
 # Recuperación de contraseña ------------------------------------
 
@@ -188,10 +196,17 @@ def gestion_usuarios(request):
         return Response(serializer.data)
 
     elif request.method == 'POST':
-        serializer = UserCreateUpdateSerializer(data=request.data)
+        print("DATA recibida:", request.data)
+        
+        data = request.data.copy()
+        if 'phone' not in data:
+            data['phone'] = ''
+        
+        serializer = UserCreateUpdateSerializer(data=data)
         if serializer.is_valid():
             user = serializer.save()
             return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+        print("ERRORES:", serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
@@ -222,9 +237,9 @@ def gestion_usuario_individual(request, pk):
 
     elif request.method == 'DELETE':
         if user == request.user:
-            return Response({'error': 'No puedes desactivar tu propio usuario.'}, status=status.HTTP_400_BAD_REQUEST)
-        services.desactivar_usuario(user)
-        return Response({'message': 'Usuario desactivado.'}, status=status.HTTP_200_OK)
+            return Response({'error': 'No puedes eliminar tu propio usuario.'}, status=status.HTTP_400_BAD_REQUEST)
+        user.delete()
+        return Response({'message': 'Usuario eliminado.'}, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

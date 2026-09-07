@@ -110,12 +110,14 @@
                 <Button variant="secondary" size="md" onclick={() => mostrarConsumo = true}>+ Consumo</Button>
                 <Button variant="secondary" size="md" onclick={() => mostrarPago = true}>+ Pago</Button>
             {/if}
-            <Button variant="secondary" size="md" onclick={() => window.print()}>
-                <span class="flex items-center gap-1.5">
-                    <Icon name="export" class="w-4 h-4" />
-                    Imprimir Hoja
-                </span>
-            </Button>
+            <a href="{import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'}/reportes/hoja-huesped/{reservacion.id}/" target="_blank" class="no-underline">
+                <Button variant="secondary" size="md">
+                    <span class="flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                        Hoja de Registro de Húesped
+                    </span>
+                </Button>
+            </a>
             <Button variant="ghost" size="md" onclick={volver}>Volver</Button>
         </div>
     </PageHeader>
@@ -138,10 +140,30 @@
             <h3 class="font-display text-lg text-hotel-text-primary mb-4">Consumos</h3>
             {#if consumos.length > 0}
                 <table class="w-full text-xs">
-                    <thead><tr class="text-[10px] uppercase text-hotel-text-tertiary text-left"><th class="p-2">Fecha</th><th class="p-2">Tipo</th><th class="p-2">Descripción</th><th class="p-2 text-right">Total</th></tr></thead>
+                    <thead>
+                        <tr class="text-[10px] uppercase text-hotel-text-tertiary text-left">
+                            <th class="p-2">Fecha</th>
+                            <th class="p-2">Tipo</th>
+                            <th class="p-2">Producto</th>
+                            <th class="p-2">Descripción</th>
+                            <th class="p-2 text-right">Total</th>
+                        </tr>
+                    </thead>
                     <tbody>
                         {#each consumos as c}
-                            <tr class="border-t border-hotel-border/30"><td class="p-2">{new Date(c.fecha_hora).toLocaleDateString()}</td><td class="p-2">{c.tipo_consumo}</td><td class="p-2">{c.descripcion}</td><td class="p-2 text-right font-bold">${c.total}</td></tr>
+                            <tr class="border-t border-hotel-border/30">
+                                <td class="p-2">{new Date(c.fecha_hora).toLocaleDateString()}</td>
+                                <td class="p-2">{c.tipo_consumo}</td>
+                                <td class="p-2">
+                                    {#if c.producto_nombre}
+                                        <span class="text-hotel-gold font-bold">{c.producto_nombre}</span>
+                                    {:else}
+                                        <span class="text-hotel-text-tertiary">—</span>
+                                    {/if}
+                                </td>
+                                <td class="p-2">{c.descripcion}</td>
+                                <td class="p-2 text-right font-bold">${c.total}</td>
+                            </tr>
                         {/each}
                     </tbody>
                 </table>
@@ -155,10 +177,24 @@
             <h3 class="font-display text-lg text-hotel-text-primary mb-4">Pagos</h3>
             {#if pagos.length > 0}
                 <table class="w-full text-xs">
-                    <thead><tr class="text-[10px] uppercase text-hotel-text-tertiary text-left"><th class="p-2">Fecha</th><th class="p-2">Método</th><th class="p-2 text-right">Monto</th></tr></thead>
+                    <thead>
+                        <tr class="text-[10px] uppercase text-hotel-text-tertiary text-left">
+                            <th class="p-2">Fecha</th>
+                            <th class="p-2">Método</th>
+                            <th class="p-2 hidden sm:table-cell">Referencia</th>
+                            <th class="p-2 text-right">Monto</th>
+                        </tr>
+                    </thead>
                     <tbody>
                         {#each pagos as p}
-                            <tr class="border-t border-hotel-border/30"><td class="p-2">{new Date(p.fecha_hora).toLocaleDateString()}</td><td class="p-2">{p.metodo_pago}</td><td class="p-2 text-right font-bold text-hotel-gold">${p.monto}</td></tr>
+                            <tr class="border-t border-hotel-border/30">
+                                <td class="p-2">{new Date(p.fecha_hora).toLocaleDateString()}</td>
+                                <td class="p-2">{p.metodo_pago}</td>
+                                <td class="p-2 hidden sm:table-cell text-hotel-text-secondary">
+                                    {p.numero_referencia || '—'}
+                                </td>
+                                <td class="p-2 text-right font-bold text-hotel-gold">${p.monto}</td>
+                            </tr>
                         {/each}
                     </tbody>
                 </table>

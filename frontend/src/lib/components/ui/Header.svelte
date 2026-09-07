@@ -6,12 +6,6 @@
 
   let activeDropdown = $state<string | null>(null);
 
-  const notifications = [
-    { id: 1, text: 'Nueva reserva: Suite 301', time: '5 min', unread: true },
-    { id: 2, text: 'Check-out pendiente: H-205', time: '15 min', unread: true },
-    { id: 3, text: 'Solicitud mantenimiento H-208', time: '1 h', unread: false },
-  ];
-
   const toggleDropdown = (name: string) => {
     activeDropdown = activeDropdown === name ? null : name;
   };
@@ -30,7 +24,6 @@
     }))
   );
 
-  let unreadCount = $derived(notifications.filter(n => n.unread).length);
   let userName = $derived(auth.user?.username ?? 'Usuario');
   let userInitial = $derived(userName.charAt(0).toUpperCase());
   let userRole = $derived(auth.user?.role === 'admin' ? 'Administrador' : 'Recepcionista');
@@ -61,37 +54,6 @@
 
   <div class="flex items-center gap-2 sm:gap-4 dropdown-container">
     
-    <div class="relative">
-      <button onclick={() => toggleDropdown('notifications')} 
-              class="p-2 rounded-xl text-hotel-text-secondary hover:bg-hotel-surface hover:text-hotel-text-primary transition-all relative"
-              aria-label="Notificaciones">
-        <Icon name="bell" class="w-5 h-5" />
-        {#if unreadCount > 0}
-          <span class="absolute top-2 right-2 w-2 h-2 bg-hotel-error rounded-full animate-pulse"></span>
-        {/if}
-      </button>
-
-      {#if activeDropdown === 'notifications'}
-        <div transition:fly={{ y: 10, duration: 200 }} 
-            class="absolute right-0 mt-2 w-80 bg-hotel-surface border border-hotel-border rounded-xl shadow-hotel-lg overflow-hidden z-50">
-          <div class="p-4 border-b border-hotel-border flex justify-between items-center">
-            <h3 class="font-medium text-hotel-text-primary">Notificaciones</h3>
-            <span class="text-[10px] bg-hotel-gold/15 text-hotel-gold px-2 py-0.5 rounded-full uppercase font-bold">
-              {unreadCount} nuevas
-            </span>
-          </div>
-          <div class="max-h-64 overflow-y-auto custom-scrollbar">
-            {#each notifications as notif}
-              <div class="p-4 border-b border-hotel-border hover:bg-hotel-surface-hover transition-colors cursor-pointer {notif.unread ? 'bg-hotel-gold/5' : ''}">
-                <p class="text-sm text-hotel-text-primary">{notif.text}</p>
-                <p class="text-xs text-hotel-text-tertiary mt-1">{notif.time}</p>
-              </div>
-            {/each}
-          </div>
-        </div>
-      {/if}
-    </div>
-
     <div class="relative">
       <button onclick={() => toggleDropdown('profile')} 
               class="flex items-center gap-3 p-1.5 rounded-xl hover:bg-hotel-surface transition-all"

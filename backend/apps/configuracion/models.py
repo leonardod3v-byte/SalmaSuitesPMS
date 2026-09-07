@@ -15,7 +15,7 @@ class Configuracion(models.Model):
 
 class ColoresTipoCliente(models.Model):
     tipo_cliente_profesion = models.CharField(max_length=30, primary_key=True)
-    color = models.CharField(max_length=7)  # Hex: #FF5733
+    color = models.CharField(max_length=7)
 
     class Meta:
         db_table = 'colores_tipo_cliente'

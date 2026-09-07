@@ -75,6 +75,10 @@ export function registrarPago(reservaId: number, data: any): Promise<Pago> {
     });
 }
 
+export function fetchSaldo(reservaId: number): Promise<ResumenCheckout> {
+    return apiFetch<ResumenCheckout>(`/reservaciones/${reservaId}/saldo/`);
+}
+
 // Colores para el calendario
 export const TIPOS_CLIENTE: Record<string, { label: string; color: string; bg: string; text: string }> = {
     'Particular': { label: 'Particular', color: '#9E9E9E', bg: '#9E9E9E15', text: '#9E9E9E' },

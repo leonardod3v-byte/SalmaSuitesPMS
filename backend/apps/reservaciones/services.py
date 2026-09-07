@@ -17,6 +17,7 @@ def _calcular_totales(reservacion, calcular_consumos=False):
     else:
         reservacion.monto_total_consumos = Decimal('0.00')
     reservacion.monto_total_final = reservacion.total_habitacion + reservacion.monto_total_consumos
+    reservacion.saldo_pendiente = reservacion.monto_total_final - reservacion.monto_pagado
 
 def _validar_solapamiento(habitacion_id, fecha_entrada, fecha_salida, excluir_reserva=None):
     qs = Reservacion.objects.filter(

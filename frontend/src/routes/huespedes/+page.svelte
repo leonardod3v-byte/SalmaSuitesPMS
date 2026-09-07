@@ -8,7 +8,7 @@
     import Icon from '$components/ui/Icons.svelte';
     import GuestTable from '$components/huespedes/GuestTable.svelte';
     import GuestForm from '$components/huespedes/GuestForm.svelte';
-    import { fetchHuespedes } from '$lib/services/huespedes';
+    import { fetchHuespedes, getExportUrl } from '$lib/services/huespedes';
     import type { Huesped } from '$lib/types/huesped';
 
     let huespedes = $state<Huesped[]>([]);
@@ -52,32 +52,9 @@
         busqueda = '';
     }
 
-    function exportarCSV() {
-        const data = filtrados;
-        if (data.length === 0) return;
-
-        const headers = ['Nombres', 'Apellidos', 'Tipo Doc', 'Nº Documento', 'Nacionalidad', 'Teléfono', 'Email', 'Tipo Cliente', 'Categoría', 'Crédito'];
-        const rows = data.map(h => [
-            h.nombres,
-            h.apellidos,
-            h.tipo_documento,
-            h.numero_documento,
-            h.nacionalidad,
-            h.telefono,
-            h.email,
-            h.tipo_cliente_profesion,
-            h.categoria,
-            h.credito_autorizado ? `Sí (${h.limite_credito})` : 'No'
-        ]);
-
-        const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
-        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `huespedes_${new Date().toISOString().slice(0, 10)}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
+    function exportarXLS() {
+        const url = getExportUrl();
+        window.open(url, '_blank');
     }
 </script>
 
@@ -87,10 +64,10 @@
 
 <PageHeader title="Huéspedes" subtitle="{filtrados.length} Registros">
     <div class="flex items-center gap-3">
-        <Button variant="secondary" size="md" onclick={exportarCSV}>
+        <Button variant="secondary" size="md" onclick={exportarXLS}>
             <span class="flex items-center gap-1.5">
                 <Icon name="export" class="w-4 h-4" />
-                Exportar
+                Exportar XLS
             </span>
         </Button>
         <Button variant="gold" size="md" onclick={() => mostrarForm = true}>

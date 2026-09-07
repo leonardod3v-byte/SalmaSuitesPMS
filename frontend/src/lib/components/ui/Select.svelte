@@ -10,6 +10,7 @@
         error = $bindable(''),
         required = false,
         id = getUniqueId(),
+        onchange,
     }: {
         value?: string;
         options: { value: string; label: string }[];
@@ -18,7 +19,13 @@
         error?: string;
         required?: boolean;
         id?: string;
+        onchange?: (e: Event) => void;
     } = $props();
+
+    function handleChange(e: Event) {
+        error = '';
+        if (onchange) onchange(e);
+    }
 </script>
 
 <div class="space-y-2 w-full">
@@ -31,15 +38,17 @@
     <select
         {id}
         bind:value
-        onchange={() => error = ''}
+        onchange={handleChange}
         class="w-full rounded-lg px-4 py-3.5 text-sm bg-hotel-bg text-hotel-text-primary border {error ? 'border-hotel-error' : 'border-hotel-border'} outline-none focus:border-hotel-gold focus:ring-4 focus:ring-hotel-gold/10"
     >
-        <option value="" disabled>{placeholder}</option>
+        {#if placeholder}
+            <option value="" disabled>{placeholder}</option>
+        {/if}
         {#each options as opt}
             <option value={opt.value}>{opt.label}</option>
         {/each}
     </select>
     {#if error}
-        <p class="text-xs text-hotel-error">{error}</p>
+        <p class="text-xs text-hotel-error mt-1">{error}</p>
     {/if}
 </div>
