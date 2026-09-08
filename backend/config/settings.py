@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-from datetime import timedelta
 import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -17,7 +16,7 @@ if env_path.exists():
 SECRET_KEY = os.environ.get('SECRET_KEY') or '49(2lnui!j3w39=xg(g-n)_4dns_zs%8wj-t_m!@drg@z=xok&'
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['*'] if DEBUG else ['tu-dominio.up.railway.app']
+ALLOWED_HOSTS = ['*'] if DEBUG else os.environ.get('ALLOWED_HOSTS', '*').split(',')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -54,7 +53,6 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 ROOT_URLCONF = 'config.urls'
 WSGI_APPLICATION = 'config.wsgi.application'
 
@@ -76,7 +74,8 @@ TEMPLATES = [
 
 DATABASES = {
     'default': dj_database_url.config(
-        default=f'sqlite:///{BASE_DIR.parent / "database" / "db.sqlite3"}'
+        default=f'sqlite:///{BASE_DIR.parent / "database" / "db.sqlite3"}',
+        conn_max_age=600,
     )
 }
 
@@ -89,6 +88,7 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
@@ -107,11 +107,7 @@ REST_FRAMEWORK = {
 }
 
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'https://tu-dominio.up.railway.app',
-]
+CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(',')
 CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
@@ -124,16 +120,13 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
-CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-]
+CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(',')
 
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_SECURE = False
+SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = not DEBUG
 
 AUTH_TOKEN_COOKIE_NAME = 'auth_token'
 AUTH_TOKEN_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
@@ -144,10 +137,7 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
-DEFAULT_FROM_EMAIL = os.environ.get(
-    'DEFAULT_FROM_EMAIL',
-    'Sistema PMS Hotel Salma Suite VIP <noreply@salmasuite.com>'
-)
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'Sistema PMS Hotel Salma Suite VIP <noreply@salmasuite.com>')
 
 CACHES = {
     'default': {

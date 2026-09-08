@@ -21,8 +21,8 @@ def crear_usuarios():
             username='admin',
             password='admin123',
             role='admin',
-            nombre_completo='Leonardo Noa',
-            email='leonardonoa803@gmail.com'
+            nombre_completo='Hotel Salma Suites VIP',
+            email='hotelsalmasuites@gmail.com'
         )
         print("  Admin creado.")
     else:
@@ -34,23 +34,11 @@ def crear_usuarios():
             password='recepcion123',
             role='recepcionista',
             nombre_completo='María Recepción',
-            email='recepcion@salmasuite.com'
+            email='recepcion1@gmail.com'
         )
         print("  Recepcionista 1 creado.")
     else:
         print("  Recepcionista 1 ya existe.")
-
-    if not User.objects.filter(username='recepcion2').exists():
-        User.objects.create_user(
-            username='recepcion2',
-            password='recepcion123',
-            role='recepcionista',
-            nombre_completo='Juan Recepción',
-            email='juan@salmasuite.com'
-        )
-        print("  Recepcionista 2 creado.")
-    else:
-        print("  Recepcionista 2 ya existe.")
     print("OK")
 
 def crear_habitaciones():
