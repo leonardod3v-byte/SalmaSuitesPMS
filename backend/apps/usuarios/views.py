@@ -51,9 +51,9 @@ def login_view(request):
         key='auth_token',
         value=token.key,
         httponly=True,
-        secure=False,  # True en producción con HTTPS
-        samesite='Lax',
-        max_age=60 * 60 * 24 * 7  # 7 días
+        secure=True,
+        samesite='None',
+        max_age=60 * 60 * 24 * 7
     )
     return response
 

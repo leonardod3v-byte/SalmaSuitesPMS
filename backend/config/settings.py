@@ -107,12 +107,10 @@ REST_FRAMEWORK = {
 }
 
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:5173',
-    'http://localhost:4173',
-    'http://127.0.0.1:5173',
-    'http://127.0.0.1:4173',
-]
+CORS_ALLOWED_ORIGINS = os.environ.get(
+    'CORS_ORIGINS',
+    'http://localhost:5173,http://localhost:4173,http://127.0.0.1:5173,http://127.0.0.1:4173'
+).split(',')
 CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
@@ -125,13 +123,16 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
-CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(',')
+CSRF_TRUSTED_ORIGINS = os.environ.get(
+    'CSRF_ORIGINS',
+    'http://localhost:5173,http://127.0.0.1:5173'
+).split(',')
 
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SAMESITE = 'None'
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SAMESITE = 'None'
+CSRF_COOKIE_SECURE = True
 
 AUTH_TOKEN_COOKIE_NAME = 'auth_token'
 AUTH_TOKEN_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
