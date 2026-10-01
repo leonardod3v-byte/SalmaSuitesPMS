@@ -109,7 +109,7 @@ REST_FRAMEWORK = {
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = os.environ.get(
     'CORS_ORIGINS',
-    'http://localhost:5173,http://localhost:4173,http://127.0.0.1:5173,http://127.0.0.1:4173'
+    'https://salma-suites-pms.vercel.app,http://localhost:5173,http://localhost:4173,http://127.0.0.1:5173,http://127.0.0.1:4173'
 ).split(',')
 CORS_ALLOW_HEADERS = [
     'accept',
@@ -125,7 +125,7 @@ CORS_ALLOW_HEADERS = [
 
 CSRF_TRUSTED_ORIGINS = os.environ.get(
     'CSRF_ORIGINS',
-    'http://localhost:5173,http://127.0.0.1:5173'
+    'https://salma-suites-pms.vercel.app,http://localhost:5173,http://127.0.0.1:5173'
 ).split(',')
 
 SESSION_COOKIE_HTTPONLY = True
