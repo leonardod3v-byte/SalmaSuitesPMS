@@ -31,6 +31,7 @@ RESET_CACHE_PREFIX = "pwd_reset_"
 def login_view(request):
     serializer = LoginSerializer(data=request.data)
     if not serializer.is_valid():
+        print("ERROR LOGIN:", serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     user = serializer.validated_data
     token, _ = Token.objects.get_or_create(user=user)
@@ -46,7 +47,7 @@ def login_view(request):
         }
     }, status=status.HTTP_200_OK)
 
-    # Establecer cookie HttpOnly con el token
+    # Cookie HttpOnly para web
     response.set_cookie(
         key='auth_token',
         value=token.key,
@@ -55,6 +56,8 @@ def login_view(request):
         samesite='None',
         max_age=60 * 60 * 24 * 7
     )
+    # Header de respaldo por si la cookie falla en algunos navegadores
+    response['X-Auth-Token'] = token.key
     return response
 
 @api_view(['POST'])

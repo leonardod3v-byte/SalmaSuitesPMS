@@ -1,27 +1,58 @@
 <script lang="ts">
   import '../app.css';
+  import { onMount } from 'svelte';
   import { page } from '$app/stores';
+  import { goto } from '$app/navigation';
   import Sidebar from '$components/ui/Sidebar.svelte';
   import Header from '$components/ui/Header.svelte';
   import Toast from '$components/ui/Toast.svelte';
-  import { auth } from '$stores/auth.svelte';
+  import { auth, type User } from '$stores/auth.svelte';
+  import { apiFetch } from '$lib/services/api';
 
-  let { children, data } = $props();
+  let { children } = $props();
 
-  $effect(() => {
-    auth.init(data.user);
-  });
+  let listo = $state(false);
 
   let isPublicPage = $derived(
     $page.url.pathname === '/login' ||
     $page.url.pathname === '/recuperar' ||
     $page.url.pathname === '/'
   );
+
+  onMount(async () => {
+    // Si estamos en una página pública, no cargamos usuario
+    if (isPublicPage) {
+      auth.init(null);
+      listo = true;
+      return;
+    }
+
+    // Cargar el usuario desde el backend
+    try {
+      const user = await apiFetch<User>('/auth/profile/');
+      auth.init(user);
+    } catch {
+      auth.init(null);
+      // Si falla y no es página pública, redirigir al login
+      if (!isPublicPage) {
+        goto('/login', { replaceState: true });
+        return;
+      }
+    } finally {
+      listo = true;
+    }
+  });
 </script>
 
 <Toast />
 
-{#if isPublicPage}
+{#if !listo && !isPublicPage}
+  <div class="min-h-screen bg-hotel-bg flex items-center justify-center">
+    <div class="text-hotel-gold animate-pulse text-xs uppercase tracking-widest">
+      Cargando...
+    </div>
+  </div>
+{:else if isPublicPage}
   <main class="min-h-screen bg-hotel-bg">
     {@render children()}
   </main>

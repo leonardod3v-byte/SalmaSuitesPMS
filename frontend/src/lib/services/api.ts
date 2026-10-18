@@ -14,7 +14,7 @@ export async function apiFetch<T = unknown>(
     } = {}
 ): Promise<T> {
     const url = `${API_URL}${path}`;
-    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+    const token = getToken();
 
     const headers: Record<string, string> = {};
 
@@ -38,6 +38,13 @@ export async function apiFetch<T = unknown>(
     };
 
     const res = await fetch(url, config);
+
+    if (res.status === 401) {
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('auth_token');
+        }
+        throw new Error('Sesión expirada. Inicia sesión de nuevo.');
+    }
 
     if (!res.ok) {
         const error = await res.json().catch(() => ({ detail: 'Error desconocido' }));

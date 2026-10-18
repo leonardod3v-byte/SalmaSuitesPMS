@@ -27,7 +27,6 @@ export const auth = {
                 body: JSON.stringify({ username, password }),
             } as any);
             user = data.user;
-            // Guardar token en localStorage para apiFetch
             if (typeof window !== 'undefined') {
                 localStorage.setItem('auth_token', data.token);
             }
@@ -41,6 +40,7 @@ export const auth = {
         try {
             await apiFetch('/auth/logout/', { method: 'POST' });
         } catch {
+            // Ignorar errores de red al cerrar sesión
         }
         user = null;
         if (typeof window !== 'undefined') {
