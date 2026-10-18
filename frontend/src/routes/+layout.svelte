@@ -27,19 +27,33 @@
       return;
     }
 
-    // Cargar el usuario desde el backend
+    // Verificar si hay token en localStorage antes de hacer la petición
+    const tokenLocal = localStorage.getItem('auth_token');
+    
+    if (!tokenLocal) {
+      // No hay token, redirigir al login
+      auth.init(null);
+      goto('/login', { replaceState: true });
+      return;
+    }
+
     try {
       const user = await apiFetch<User>('/auth/profile/');
       auth.init(user);
-    } catch {
-      auth.init(null);
-      // Si falla y no es página pública, redirigir al login
-      if (!isPublicPage) {
-        goto('/login', { replaceState: true });
-        return;
-      }
-    } finally {
       listo = true;
+    } catch {
+      // Si falla, intentar de nuevo una vez
+      try {
+        await new Promise(r => setTimeout(r, 500));
+        const user = await apiFetch<User>('/auth/profile/');
+        auth.init(user);
+        listo = true;
+      } catch {
+        // Si falla de nuevo, limpiar y redirigir
+        localStorage.removeItem('auth_token');
+        auth.init(null);
+        goto('/login', { replaceState: true });
+      }
     }
   });
 </script>
