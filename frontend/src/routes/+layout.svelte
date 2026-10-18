@@ -26,21 +26,30 @@
     }
 
     const tokenLocal = localStorage.getItem('auth_token');
+    
+    // Si no hay token en localStorage, redirigir al login
     if (!tokenLocal) {
       auth.init(null);
       goto('/login', { replaceState: true });
       return;
     }
 
+    // Si hay token, cargar el perfil
     try {
       const user = await apiFetch<User>('/auth/profile/');
       auth.init(user);
-    } catch {
-      localStorage.removeItem('auth_token');
-      auth.init(null);
-      goto('/login', { replaceState: true });
-    } finally {
       listo = true;
+    } catch (error: any) {
+      // Solo borrar el token si el backend explícitamente dice 401
+      if (error.message?.includes('401') || error.message?.includes('Sesión expirada')) {
+        localStorage.removeItem('auth_token');
+        auth.init(null);
+        goto('/login', { replaceState: true });
+      } else {
+        // Si es otro error (red, timeout), asumir que el token es válido
+        // y dejar que el usuario siga en el dashboard
+        listo = true;
+      }
     }
   });
 </script>
