@@ -1,7 +1,7 @@
 <script lang="ts">
   import '../app.css';
   import { onMount } from 'svelte';
-  import { page } from '$app/stores';
+  import { page as pageStore } from '$app/stores';
   import { goto } from '$app/navigation';
   import Sidebar from '$components/ui/Sidebar.svelte';
   import Header from '$components/ui/Header.svelte';
@@ -10,21 +10,16 @@
   import { apiFetch } from '$lib/services/api';
 
   let { children } = $props();
-  let validado = $state(false);
 
   let isPublicPage = $derived(
-    $page.url.pathname === '/login' ||
-    $page.url.pathname === '/recuperar' ||
-    $page.url.pathname === '/'
+    $pageStore.url.pathname === '/login' ||
+    $pageStore.url.pathname === '/recuperar' ||
+    $pageStore.url.pathname === '/'
   );
 
   onMount(async () => {
-    // Si ya validamos una vez, no volver a hacerlo al navegar entre páginas
-    if (validado) return;
-
     if (isPublicPage) {
       auth.init(null);
-      validado = true;
       return;
     }
 
@@ -32,22 +27,24 @@
     if (!tokenLocal) {
       auth.init(null);
       goto('/login', { replaceState: true });
-      validado = true;
+      return;
+    }
+
+    if (auth.user) {
+      auth.init(auth.user);
       return;
     }
 
     try {
       const user = await apiFetch<User>('/auth/profile/');
       auth.init(user);
-    } catch (error: any) {
-      if (error.message?.includes('401') || error.message?.includes('Sesión expirada')) {
-        localStorage.removeItem('auth_token');
+    } catch (err: any) {
+      if (err.message?.includes('Sesión expirada') || err.status === 401) {
         auth.init(null);
         goto('/login', { replaceState: true });
+      } else {
+        auth.init(null);
       }
-      // Si es otro error (red, timeout), no hacemos nada, el usuario sigue en el dashboard
-    } finally {
-      validado = true;
     }
   });
 </script>

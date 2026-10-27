@@ -93,7 +93,7 @@
     });
 </script>
 
-<section class="lg:col-span-2 bg-hotel-surface rounded-2xl p-6 border border-hotel-border shadow-hotel-sm flex flex-col h-[400px]">
+<section class="lg:col-span-2 bg-hotel-surface rounded-2xl p-6 border border-hotel-border shadow-hotel-sm flex flex-col h-100">
     <div class="flex justify-between items-center mb-4 shrink-0">
         <h3 class="font-display text-xl text-hotel-text-primary italic">Ocupación Semanal</h3>
         {#if data}
