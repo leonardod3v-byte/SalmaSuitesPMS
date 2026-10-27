@@ -10,5 +10,4 @@ class CookieTokenAuthentication(TokenAuthentication):
                 return self.authenticate_credentials(token_key)
             except Exception:
                 pass
-        # Fallback al header Authorization
         return super().authenticate(request)
