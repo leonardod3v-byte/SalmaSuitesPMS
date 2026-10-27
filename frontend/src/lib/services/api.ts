@@ -40,9 +40,8 @@ export async function apiFetch<T = unknown>(
     const res = await fetch(url, config);
 
     if (res.status === 401) {
-        if (typeof window !== 'undefined') {
-            localStorage.removeItem('auth_token');
-        }
+        // NO borramos el token aquí. Solo lanzamos el error.
+        // El layout o el componente decidirán si redirigir o no.
         throw new Error('Sesión expirada. Inicia sesión de nuevo.');
     }
 

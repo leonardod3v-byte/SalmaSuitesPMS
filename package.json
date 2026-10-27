@@ -2,8 +2,12 @@
   "name": "hotel-pms",
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "dev:backend": "cd backend && venv\\Scripts\\activate && python manage.py runserver 0.0.0.0:8000",
-    "dev:frontend": "cd frontend && npm run dev"
+    "dev:backend": "cd backend && venv\\Scripts\\python manage.py runserver 0.0.0.0:8000",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "preview": "npm run build && concurrently \"npm run preview:backend\" \"npm run preview:frontend\"",
+    "preview:backend": "cd backend && venv\\Scripts\\python manage.py runserver 0.0.0.0:8000",
+    "preview:frontend": "cd frontend && npm run preview"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"
