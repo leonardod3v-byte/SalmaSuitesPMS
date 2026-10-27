@@ -31,7 +31,6 @@
     }
 
     if (auth.user) {
-      auth.init(auth.user);
       return;
     }
 
@@ -39,11 +38,10 @@
       const user = await apiFetch<User>('/auth/profile/');
       auth.init(user);
     } catch (err: any) {
-      if (err.message?.includes('Sesión expirada') || err.status === 401) {
+      if (err.message?.includes('Sesión expirada') || err.message?.includes('401')) {
+        localStorage.removeItem('auth_token');
         auth.init(null);
         goto('/login', { replaceState: true });
-      } else {
-        auth.init(null);
       }
     }
   });
