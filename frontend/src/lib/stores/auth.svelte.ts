@@ -19,13 +19,18 @@ export const auth = {
         loading = false;
     },
 
-    async login(username: string, password: string): Promise<User> {
+async login(username: string, password: string): Promise<User> {
         loading = true;
         try {
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('auth_token');
+            }
+
             const data = await apiFetch<{ token: string; user: User }>('/auth/login/', {
                 method: 'POST',
                 body: JSON.stringify({ username, password }),
             } as any);
+
             user = data.user;
             if (typeof window !== 'undefined') {
                 localStorage.setItem('auth_token', data.token);

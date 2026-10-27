@@ -14,7 +14,9 @@ export async function apiFetch<T = unknown>(
     } = {}
 ): Promise<T> {
     const url = `${API_URL}${path}`;
-    const token = getToken();
+
+    const isPublicRoute = path.includes('/auth/login') || path.includes('/auth/register');
+    const token = isPublicRoute ? null : getToken();
 
     const headers: Record<string, string> = {};
 
