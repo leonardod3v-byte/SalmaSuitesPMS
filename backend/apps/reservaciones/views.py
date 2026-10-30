@@ -15,14 +15,14 @@ from . import services
 def lista_reservaciones(request):
     if request.method == 'GET':
         qs = Reservacion.objects.select_related('id_huesped_titular', 'id_habitacion').all()
-        
+
         estado = request.query_params.get('estado')
         if estado:
             qs = qs.filter(estado=estado)
-        
+
         desde = request.query_params.get('desde')
         hasta = request.query_params.get('hasta')
-        
+
         if desde and hasta:
             # Reservas que se solapan con el rango [desde, hasta]
             qs = qs.filter(
@@ -33,7 +33,7 @@ def lista_reservaciones(request):
             qs = qs.filter(fecha_salida__gt=desde)
         elif hasta:
             qs = qs.filter(fecha_entrada__lt=hasta)
-        
+
         serializer = ReservacionSerializer(qs, many=True)
         return Response(serializer.data)
 
@@ -43,7 +43,7 @@ def lista_reservaciones(request):
         from datetime import datetime
         data['fecha_entrada'] = datetime.strptime(data['fecha_entrada'], '%Y-%m-%d').date()
         data['fecha_salida'] = datetime.strptime(data['fecha_salida'], '%Y-%m-%d').date()
-        
+
         acompanantes = data.pop('acompanantes', [])
         monto_abonado = data.pop('monto_abonado', '0.00')
         try:

@@ -223,6 +223,10 @@ def agregar_consumo(reserva_id, tipo, descripcion, cantidad, precio_unitario, pr
 
 def registrar_pago_extra(reserva_id, monto, metodo_pago, numero_referencia='', usuario=None):
     reserva = Reservacion.objects.get(pk=reserva_id)
+    if monto > reserva.saldo_pendiente:
+        raise ValidationError(f'El monto a pagar (${monto}) supera el saldo pendiente (${reserva.saldo_pendiente}).')
+    if monto <= 0:
+        raise ValidationError('El monto debe ser mayor a 0.')
     # Permitir pagos en Confirmada (si abono/crédito) y EnCurso (todas)
     if reserva.estado not in ['Confirmada', 'EnCurso']:
         # También permitir en Finalizada si crédito y saldo >0

@@ -46,12 +46,11 @@
 
     onMount(() => {
         cargarDatos();
-        // Polling de actividades cada 60 segundos
         pollingInterval = setInterval(async () => {
             try {
                 const a = await apiFetch<any[]>('/bitacora/actividades/?limit=20');
                 actividades = a;
-            } catch { /* ignorar errores de polling */ }
+            } catch { }
         }, 60_000);
     });
 
@@ -116,11 +115,14 @@
         </div>
 
         <!-- Ocupación semanal + Actividades -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6" style="height: 400px;">
-            <div class="lg:col-span-2 h-full">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            <!-- Gráfico de Ocupación (ocupa 2 columnas en pantallas grandes) -->
+            <div class="lg:col-span-2 h-100 min-w-0">
                 <OcupacionChart data={ocupacionSemanal} />
             </div>
-            <div class="h-full">
+
+            <!-- Actividades Recientes (ocupa 1 columna y tiene su propio scroll) -->
+            <div class="h-100 min-w-0">
                 <ActividadesLog actividades={actividades} />
             </div>
         </div>

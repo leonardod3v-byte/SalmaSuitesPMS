@@ -1,7 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { toast } from '$lib/stores/toast';
-    import Button from '$components/ui/Button.svelte';
     import {
         fetchColoresTipoCliente,
         saveColorTipoCliente,
@@ -46,50 +45,53 @@
     }
 </script>
 
-<div class="space-y-6">
-    <!-- Colores por Tipo de Cliente -->
-    <div>
-        <h3 class="font-display text-lg text-hotel-text-primary italic mb-4">Colores por Tipo de Cliente</h3>
-        <div class="space-y-3">
-            {#each coloresTipo as item}
-                <div class="flex items-center gap-4 p-3 rounded-xl bg-hotel-bg/40 border border-hotel-border">
-                    <div class="w-8 h-8 rounded-lg border" style="background-color: {item.color}"></div>
-                    <span class="flex-1 text-sm font-bold text-hotel-text-primary">{item.tipo_cliente_profesion}</span>
-                    <input
-                        type="color"
-                        value={item.color}
-                        onchange={async (e) => {
-                            const nuevo = (e.target as HTMLInputElement).value;
-                            item.color = nuevo;
-                            await guardarColorTipo(item.tipo_cliente_profesion, nuevo);
-                        }}
-                        class="w-10 h-10 rounded-lg border border-hotel-border cursor-pointer bg-hotel-bg"
-                    />
-                </div>
-            {/each}
-        </div>
-    </div>
+{#if cargando}
+    <p class="text-sm text-hotel-text-tertiary">Cargando colores...</p>
+{:else}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
 
-    <!-- Colores por Estado de Habitación -->
-    <div>
-        <h3 class="font-display text-lg text-hotel-text-primary italic mb-4">Colores por Estado de Habitación</h3>
-        <div class="space-y-3">
-            {#each coloresEstado as item}
-                <div class="flex items-center gap-4 p-3 rounded-xl bg-hotel-bg/40 border border-hotel-border">
-                    <div class="w-8 h-8 rounded-lg border" style="background-color: {item.color}"></div>
-                    <span class="flex-1 text-sm font-bold text-hotel-text-primary">{item.estado}</span>
-                    <input
-                        type="color"
-                        value={item.color}
-                        onchange={async (e) => {
-                            const nuevo = (e.target as HTMLInputElement).value;
-                            item.color = nuevo;
-                            await guardarColorEstado(item.estado, nuevo);
-                        }}
-                        class="w-10 h-10 rounded-lg border border-hotel-border cursor-pointer bg-hotel-bg"
-                    />
-                </div>
-            {/each}
+        <div>
+            <h4 class="text-sm font-bold uppercase tracking-wider text-hotel-text-secondary mb-3 border-b border-hotel-border pb-2">Tipos de Cliente</h4>
+            <div class="space-y-2">
+                {#each coloresTipo as item}
+                    <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-hotel-bg/40 transition-colors">
+                        <div class="w-6 h-6 rounded-md border border-hotel-border shadow-sm" style="background-color: {item.color}"></div>
+                        <span class="flex-1 text-xs font-medium text-hotel-text-primary">{item.tipo_cliente_profesion}</span>
+                        <input
+                            type="color"
+                            value={item.color}
+                            onchange={async (e) => {
+                                const nuevo = (e.target as HTMLInputElement).value;
+                                item.color = nuevo;
+                                await guardarColorTipo(item.tipo_cliente_profesion, nuevo);
+                            }}
+                            class="w-8 h-8 rounded cursor-pointer bg-transparent border-0"
+                        />
+                    </div>
+                {/each}
+            </div>
+        </div>
+
+        <div>
+            <h4 class="text-sm font-bold uppercase tracking-wider text-hotel-text-secondary mb-3 border-b border-hotel-border pb-2">Estados de Habitación</h4>
+            <div class="space-y-2">
+                {#each coloresEstado as item}
+                    <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-hotel-bg/40 transition-colors">
+                        <div class="w-6 h-6 rounded-md border border-hotel-border shadow-sm" style="background-color: {item.color}"></div>
+                        <span class="flex-1 text-xs font-medium text-hotel-text-primary">{item.estado}</span>
+                        <input
+                            type="color"
+                            value={item.color}
+                            onchange={async (e) => {
+                                const nuevo = (e.target as HTMLInputElement).value;
+                                item.color = nuevo;
+                                await guardarColorEstado(item.estado, nuevo);
+                            }}
+                            class="w-8 h-8 rounded cursor-pointer bg-transparent border-0"
+                        />
+                    </div>
+                {/each}
+            </div>
         </div>
     </div>
-</div>
+{/if}

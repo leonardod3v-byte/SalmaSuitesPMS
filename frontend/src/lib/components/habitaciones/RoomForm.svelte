@@ -26,7 +26,7 @@
     let capacidad_maxima = $state<number | ''>(1);
     let categoria_tipo = $state('Uni-Familiar');
     let precio_por_noche = $state<number | ''>('');
-    let estado = $state('Limpia');
+    let estado = $state('Disponible'); // CAMBIADO
     let notas = $state('');
     let imagenFile = $state<File | null>(null);
     let imagenPreview = $state<string | null>(null);
@@ -41,9 +41,10 @@
         { value: 'Matrimonial', label: 'Matrimonial' },
     ];
 
+    // CAMBIADO
     const estadosHabitacion = [
-        { value: 'Limpia', label: 'Limpia' },
-        { value: 'Sucia', label: 'Sucia' },
+        { value: 'Disponible', label: 'Disponible' },
+        { value: 'Limpieza', label: 'Limpieza' },
         { value: 'Mantenimiento', label: 'Mantenimiento' },
         { value: 'Obra', label: 'Obra' },
     ];
@@ -57,7 +58,7 @@
                 cantidad_camas = data.cantidad_camas;
                 capacidad_maxima = data.capacidad_maxima;
                 categoria_tipo = data.categoria_tipo;
-                precio_por_noche = parseFloat(data.precio_por_noche);
+                precio_por_noche = Number(data.precio_por_noche) || ''; // Arreglo del Bug 1
                 estado = data.estado;
                 notas = data.notas || '';
             } catch (e: any) {
@@ -113,12 +114,12 @@
     }
 
     function handleImagen(e: Event) {
-    const input = e.target as HTMLInputElement;
-    if (input.files && input.files[0]) {
-        imagenFile = input.files[0];
-        imagenPreview = URL.createObjectURL(imagenFile);
+        const input = e.target as HTMLInputElement;
+        if (input.files && input.files[0]) {
+            imagenFile = input.files[0];
+            imagenPreview = URL.createObjectURL(imagenFile);
+        }
     }
-  }
 </script>
 
 <form onsubmit={handleSubmit} class="space-y-6">
@@ -144,17 +145,17 @@
         </div>
 
         <div class="p-5 rounded-2xl bg-hotel-bg/40 border border-hotel-border space-y-4">
-          <p class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-gold">Imagen</p>
-          <input
-              type="file"
-              accept="image/*"
-              onchange={handleImagen}
-              class="w-full text-sm text-hotel-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:uppercase file:tracking-wider file:bg-hotel-gold file:text-hotel-bg hover:file:bg-hotel-gold-light file:transition-colors file:cursor-pointer"
-          />
-          {#if imagenPreview}
-              <img src={imagenPreview} alt="Preview" class="w-full h-32 object-cover rounded-lg" />
-          {/if}
-      </div>
+            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-gold">Imagen</p>
+            <input
+                type="file"
+                accept="image/*"
+                onchange={handleImagen}
+                class="w-full text-sm text-hotel-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:uppercase file:tracking-wider file:bg-hotel-gold file:text-hotel-bg hover:file:bg-hotel-gold-light file:transition-colors file:cursor-pointer"
+            />
+            {#if imagenPreview}
+                <img src={imagenPreview} alt="Preview" class="w-full h-32 object-cover rounded-lg" />
+            {/if}
+        </div>
     </div>
 
     <div class="p-5 rounded-2xl bg-hotel-bg/40 border border-hotel-border space-y-4">
@@ -165,7 +166,7 @@
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select label="Categoría / Tipo" options={tiposHabitacion} bind:value={categoria_tipo} required />
-            <InputHotel label="Precio por Noche ($)" type="number" bind:value={precio_por_noche} required placeholder="Ej: 45.00" />
+            <InputHotel label="Precio por Noche ($)" type="number" bind:value={precio_por_noche} required={!id} placeholder="Ej: 45.00" />
         </div>
     </div>
 

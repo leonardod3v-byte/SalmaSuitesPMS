@@ -26,26 +26,26 @@
 
     // Colores de estados
     const estadoClases: Record<string, string> = {
-        'Limpia': 'bg-hotel-success/10 border-hotel-success/30 text-hotel-success-light',
+        'Disponible': 'bg-hotel-success/10 border-hotel-success/30 text-hotel-success-light',
         'Ocupada': 'bg-hotel-gold/10 border-hotel-gold/30 text-hotel-gold-light',
-        'Sucia': 'bg-hotel-info/10 border-hotel-info/30 text-hotel-info-light',
+        'Limpieza': 'bg-hotel-info/10 border-hotel-info/30 text-hotel-info-light',
         'Mantenimiento': 'bg-hotel-error/10 border-hotel-error/30 text-hotel-error-light',
         'Obra': 'bg-hotel-error/10 border-hotel-error/30 text-hotel-error-light',
     };
 
     // Colores de badge
     const estadoDots: Record<string, string> = {
-        'Limpia': 'bg-hotel-success',
+        'Disponible': 'bg-hotel-success',
         'Ocupada': 'bg-hotel-gold',
-        'Sucia': 'bg-hotel-info-light',
+        'Limpieza': 'bg-hotel-info-light',
         'Mantenimiento': 'bg-hotel-error',
         'Obra': 'bg-hotel-error',
     };
 
     const estadoLabels: Record<string, string> = {
-        'Limpia': 'Limpia',
+        'Disponible': 'Disponible',
         'Ocupada': 'Ocupada',
-        'Sucia': 'Sucia',
+        'Limpieza': 'Limpieza',
         'Mantenimiento': 'Mantenimiento',
         'Obra': 'Obra',
     };
@@ -88,9 +88,9 @@
         <h3 class="font-display text-xl text-hotel-text-primary italic">Mapa de Habitaciones</h3>
         <div class="flex p-1 bg-hotel-bg rounded-xl border border-hotel-border flex-wrap gap-1">
             <button onclick={() => filtroActivo = 'todas'} class="px-3 py-1.5 text-[10px] uppercase font-bold rounded-lg transition-all {filtroActivo === 'todas' ? 'bg-hotel-gold text-hotel-bg' : 'text-hotel-text-tertiary hover:text-hotel-text-secondary'}">Todas</button>
-            <button onclick={() => filtroActivo = 'Limpia'} class="px-3 py-1.5 text-[10px] uppercase font-bold rounded-lg transition-all {filtroActivo === 'Limpia' ? 'bg-hotel-success text-white' : 'text-hotel-text-tertiary hover:text-hotel-text-secondary'}">Limpias</button>
+            <button onclick={() => filtroActivo = 'Disponible'} class="px-3 py-1.5 text-[10px] uppercase font-bold rounded-lg transition-all {filtroActivo === 'Disponible' ? 'bg-hotel-success text-white' : 'text-hotel-text-tertiary hover:text-hotel-text-secondary'}">Disponibles</button>
             <button onclick={() => filtroActivo = 'Ocupada'} class="px-3 py-1.5 text-[10px] uppercase font-bold rounded-lg transition-all {filtroActivo === 'Ocupada' ? 'bg-hotel-gold text-hotel-bg' : 'text-hotel-text-tertiary hover:text-hotel-text-secondary'}">Ocupadas</button>
-            <button onclick={() => filtroActivo = 'Sucia'} class="px-3 py-1.5 text-[10px] uppercase font-bold rounded-lg transition-all {filtroActivo === 'Sucia' ? 'bg-hotel-info text-white' : 'text-hotel-text-tertiary hover:text-hotel-text-secondary'}">Sucias</button>
+            <button onclick={() => filtroActivo = 'Limpieza'} class="px-3 py-1.5 text-[10px] uppercase font-bold rounded-lg transition-all {filtroActivo === 'Limpieza' ? 'bg-hotel-info text-white' : 'text-hotel-text-tertiary hover:text-hotel-text-secondary'}">Limpieza</button>
             <button onclick={() => filtroActivo = 'Mantenimiento'} class="px-3 py-1.5 text-[10px] uppercase font-bold rounded-lg transition-all {filtroActivo === 'Mantenimiento' ? 'bg-hotel-error text-white' : 'text-hotel-text-tertiary hover:text-hotel-text-secondary'}">Mantenimiento</button>
             <button onclick={() => filtroActivo = 'Obra'} class="px-3 py-1.5 text-[10px] uppercase font-bold rounded-lg transition-all {filtroActivo === 'Obra' ? 'bg-hotel-error text-white' : 'text-hotel-text-tertiary hover:text-hotel-text-secondary'}">Obra</button>
         </div>
@@ -140,17 +140,17 @@
             </div>
 
             <div class="flex flex-wrap gap-2 pt-4 border-t border-hotel-border/50">
-                {#if habSeleccionada.estado === 'Limpia'}
+                {#if habSeleccionada.estado === 'Disponible'}
                     <a href="/reservaciones/nueva?habitacion={habSeleccionada.id}" class="no-underline"><Button variant="gold" size="md">Nueva Reservación</Button></a>
                     <Button variant="danger" size="md" onclick={() => cambiarEstado(habSeleccionada!.id, 'Mantenimiento')}>Mantenimiento</Button>
                     <Button variant="secondary" size="md" onclick={() => cambiarEstado(habSeleccionada!.id, 'Obra')}>Enviar a Obra</Button>
-                {:else if habSeleccionada.estado === 'Sucia'}
-                    <Button variant="success" size="md" onclick={() => cambiarEstado(habSeleccionada!.id, 'Limpia')}>Marcar como Limpia</Button>
+                {:else if habSeleccionada.estado === 'Limpieza'}
+                    <Button variant="success" size="md" onclick={() => cambiarEstado(habSeleccionada!.id, 'Disponible')}>Marcar como Disponible</Button>
                 {:else if habSeleccionada.estado === 'Ocupada'}
                     <a href="/reservaciones?habitacion={habSeleccionada.id}" class="no-underline"><Button variant="gold" size="md">Ver reservación</Button></a>
                 {:else if habSeleccionada.estado === 'Mantenimiento' || habSeleccionada.estado === 'Obra'}
-                    <Button variant="success" size="md" onclick={() => cambiarEstado(habSeleccionada!.id, 'Limpia')}>Finalizar → Limpia</Button>
-                    <Button variant="secondary" size="md" onclick={() => cambiarEstado(habSeleccionada!.id, 'Sucia')}>Finalizar → Sucia</Button>
+                    <Button variant="success" size="md" onclick={() => cambiarEstado(habSeleccionada!.id, 'Disponible')}>Finalizar → Disponible</Button>
+                    <Button variant="secondary" size="md" onclick={() => cambiarEstado(habSeleccionada!.id, 'Limpieza')}>Finalizar → Limpieza</Button>
                 {/if}
                 <Button variant="ghost" size="md" onclick={cerrarPopup}>Cerrar</Button>
             </div>

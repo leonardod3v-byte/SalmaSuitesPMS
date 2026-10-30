@@ -122,7 +122,13 @@
         <div class="p-4 rounded-2xl bg-hotel-bg/40 border border-hotel-border space-y-4">
             <p class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-gold">Registrar Pago</p>
 
-            <InputHotel label="Monto a pagar ($)" type="number" bind:value={monto} />
+            <InputHotel
+                label="Monto a pagar ($)"
+                type="number"
+                bind:value={monto}
+                max={saldoPendiente > 0 ? saldoPendiente : 0}
+                min={0.01}
+            />
 
             {#if monto > saldoPendiente}
                 <p class="text-xs text-hotel-error-light flex items-center gap-1.5">

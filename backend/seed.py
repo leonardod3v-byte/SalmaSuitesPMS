@@ -21,8 +21,8 @@ def crear_usuarios():
             username='admin',
             password='admin123',
             role='admin',
-            nombre_completo='Hotel Salma Suites VIP',
-            email='hotelsalmasuites@gmail.com'
+            nombre_completo='Leonardo Noa',
+            email='leonardonoa803@gmail.com'
         )
         print("  Admin creado.")
     else:
@@ -34,11 +34,23 @@ def crear_usuarios():
             password='recepcion123',
             role='recepcionista',
             nombre_completo='María Recepción',
-            email='recepcion1@gmail.com'
+            email='recepcion@salmasuite.com'
         )
         print("  Recepcionista 1 creado.")
     else:
         print("  Recepcionista 1 ya existe.")
+
+    if not User.objects.filter(username='recepcion2').exists():
+        User.objects.create_user(
+            username='recepcion2',
+            password='recepcion123',
+            role='recepcionista',
+            nombre_completo='Juan Recepción',
+            email='juan@salmasuite.com'
+        )
+        print("  Recepcionista 2 creado.")
+    else:
+        print("  Recepcionista 2 ya existe.")
     print("OK")
 
 def crear_habitaciones():
@@ -69,7 +81,7 @@ def crear_habitaciones():
             numero=num,
             defaults={'piso': piso, 'cantidad_camas': camas,
                     'capacidad_maxima': cap, 'categoria_tipo': tipo,
-                    'precio_por_noche': precio, 'estado': 'Limpia'}
+                    'precio_por_noche': precio, 'estado': 'Disponible'}
         )
         if created:
             creadas += 1
@@ -153,24 +165,19 @@ def crear_productos():
 def crear_configuracion():
     print("Creando configuración...")
     pares = [
-        ('nombre_hotel','Hotel Salma Suites VIP, C.A.'),
-        ('rif','J-40089697-5'),
-        ('direccion','Calle N° 5 con Carrera N° 5, Urbanización Delfín Mendoza, Tucupita, Estado Delta Amacuro'),
-        ('telefono','+58 287-7210659'),
-        ('telefono_2','+58 287-7210707'),
-        ('telefono_2','+58 412-8329091'),
-        ('email','info@salmasuite.com'),
-        ('logo',''),
-        ('simbolo_moneda','$'),
-        ('posicion_simbolo','antes'),
-        ('separador_miles',','),
-        ('separador_decimal','.'),
-        ('limite_dias_cierre_recepcion','7'),
-        ('formato_fecha','DD/MM/AAAA'),
-        ('formato_hora','24h'),
+        ('nombre_hotel','Salma Suite VIP'), ('rif','J-12345678-9'),
+        ('direccion','Av. Principal, Zona Hotelera, Caracas'), ('telefono','0212-5551234'),
+        ('telefono_2','0412-5555678'), ('email','info@salmasuite.com'),
+        ('logo','logo.png'), ('simbolo_moneda','$'), ('posicion_simbolo','antes'),
+        ('separador_miles',','), ('separador_decimal','.'), ('limite_dias_cierre_recepcion','7'),
+        ('formato_fecha','DD/MM/AAAA'), ('formato_hora','24h'),
     ]
+    creados = 0
     for c, v in pares:
-        Configuracion.objects.update_or_create(clave=c, defaults={'valor': v})
+        _, created = Configuracion.objects.update_or_create(clave=c, defaults={'valor': v})
+        if created:
+            creados += 1
+    print(f"  {creados} nuevas, {len(pares) - creados} ya existían. Total: {len(pares)}")
     print("OK")
 
 def crear_colores():
@@ -189,8 +196,8 @@ def crear_colores():
     print(f"  {creados} nuevos, {len(tipos) - creados} ya existían. Total: {len(tipos)}")
 
     estados = [
-        ('Limpia','#4CAF50'),('Ocupada','#F44336'),('Sucia','#FFEB3B'),
-        ('Mantenimiento','#9E9E9E'),('Obra','#212121'),
+        ('Disponible','#4CAF50'), ('Ocupada','#F44336'), ('Limpieza','#FFEB3B'),
+        ('Mantenimiento','#9E9E9E'), ('Obra','#212121'),
     ]
     creados_estados = 0
     for e, c in estados:
@@ -202,7 +209,7 @@ def crear_colores():
 
 def main():
     print("========================================")
-    print("   SEED DE DATOS - Salma Suite VIP PMS  ")
+    print("   SEED DE DATOS - SalmaSuitesPMS  ")
     print("========================================")
     print()
     crear_usuarios()

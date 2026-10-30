@@ -30,9 +30,9 @@
     let tieneFiltros = $derived(filtroEstado !== null);
 
     const estadosFiltro = [
-        { value: 'Limpia', label: 'Limpias', color: 'bg-hotel-success' },
+        { value: 'Disponible', label: 'Disponibles', color: 'bg-hotel-success' },
         { value: 'Ocupada', label: 'Ocupadas', color: 'bg-hotel-gold' },
-        { value: 'Sucia', label: 'Sucias', color: 'bg-hotel-info-light' },
+        { value: 'Limpieza', label: 'Limpieza', color: 'bg-hotel-info-light' },
         { value: 'Mantenimiento', label: 'Mantenimiento', color: 'bg-hotel-error' },
         { value: 'Obra', label: 'Obra', color: 'bg-hotel-error' },
     ];

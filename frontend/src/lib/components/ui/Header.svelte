@@ -33,29 +33,28 @@
   if (!(e.target as HTMLElement).closest('.dropdown-container')) closeDropdowns();
 }} />
 
-<header class="h-16 sticky top-0 z-30 flex items-center justify-between px-4 lg:px-6 bg-hotel-bg/85 backdrop-blur-md border-b border-hotel-border">
+<header class="h-16 sticky top-0 z-30 flex items-center justify-between px-4 lg:px-6 bg-hotel-bg/85 backdrop-blur-md border-b border-hotel-border min-w-0">
 
-  <nav class="hidden sm:flex items-center gap-2 text-sm">
+  <nav class="hidden lg:flex items-center gap-2 text-sm min-w-0 overflow-hidden">
     <a href="/dashboard" data-sveltekit-prefetch class="text-hotel-text-secondary hover:text-hotel-gold transition-colors shrink-0">
       <Icon name="hotel" class="w-5 h-5" />
     </a>
     {#each breadcrumbs as crumb, i}
-      <span class="text-hotel-text-tertiary">/</span>
+      <span class="text-hotel-text-tertiary shrink-0">/</span>
       <a href={crumb.href} data-sveltekit-prefetch
-        class="transition-colors {i === breadcrumbs.length - 1 ? 'text-hotel-text-primary font-medium' : 'text-hotel-text-secondary'}">
+        class="transition-colors truncate {i === breadcrumbs.length - 1 ? 'text-hotel-text-primary font-medium' : 'text-hotel-text-secondary'}">
         {crumb.label}
       </a>
     {/each}
   </nav>
 
-  <span class="sm:hidden text-sm font-medium text-hotel-text-primary truncate">
+  <span class="lg:hidden text-sm font-medium text-hotel-text-primary truncate ml-12 mr-4">
     {breadcrumbs[breadcrumbs.length - 1]?.label ?? 'Dashboard'}
   </span>
 
-  <div class="flex items-center gap-2 sm:gap-4 dropdown-container">
-    
+  <div class="flex items-center gap-2 sm:gap-4 dropdown-container shrink-0">
     <div class="relative">
-      <button onclick={() => toggleDropdown('profile')} 
+      <button onclick={() => toggleDropdown('profile')}
               class="flex items-center gap-3 p-1.5 rounded-xl hover:bg-hotel-surface transition-all"
               aria-label="Perfil de usuario">
         <div class="relative">
@@ -64,15 +63,15 @@
           </div>
           <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-hotel-success border-2 border-hotel-bg rounded-full"></span>
         </div>
-        <div class="hidden md:block text-left leading-tight">
+        <div class="hidden sm:block text-left leading-tight">
           <p class="text-sm font-medium text-hotel-text-primary">{userName}</p>
           <p class="text-[10px] text-hotel-text-tertiary uppercase tracking-wider">{userRole}</p>
         </div>
       </button>
 
       {#if activeDropdown === 'profile'}
-        <div transition:fly={{ y: 10, duration: 200 }} 
-            class="absolute right-0 mt-2 w-56 bg-hotel-surface border border-hotel-border rounded-xl shadow-hotel-lg overflow-hidden">
+        <div transition:fly={{ y: 10, duration: 200 }}
+            class="absolute right-0 mt-2 w-56 bg-hotel-surface border border-hotel-border rounded-xl shadow-hotel-lg overflow-hidden z-50">
           <div class="p-4 border-b border-hotel-border bg-hotel-gold/5">
             <p class="text-sm font-bold text-hotel-text-primary">{userName}</p>
             <p class="text-xs text-hotel-text-tertiary truncate">{auth.user?.email}</p>
@@ -88,6 +87,5 @@
         </div>
       {/if}
     </div>
-
   </div>
 </header>

@@ -52,11 +52,11 @@
 
 <aside
   class="fixed left-0 top-0 h-full z-90 transition-all duration-300 ease-in-out bg-hotel-bg border-r border-hotel-border flex flex-col
-    {mobileOpen ? 'translate-x-0' : '-translate-x-full'} 
-    lg:translate-x-0 {collapsed ? 'w-20' : 'w-64'}" 
+    {mobileOpen ? 'translate-x-0' : '-translate-x-full'}
+    lg:translate-x-0 {collapsed ? 'w-20' : 'w-64'}"
 >
   <div class="flex flex-col h-full w-full overflow-x-hidden">
-    
+
     <div class="h-16 flex items-center shrink-0 border-b border-hotel-border px-5">
       <a href="/dashboard" data-sveltekit-prefetch class="flex items-center gap-3 w-full">
         <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 overflow-hidden">
@@ -78,8 +78,8 @@
             data-sveltekit-prefetch
             onclick={() => (mobileOpen = false)}
             class="flex items-center gap-4 px-3 py-3 rounded-xl transition-all duration-200 group relative
-              {$page.url.pathname === item.href 
-                ? 'bg-hotel-gold/10 text-hotel-gold border-hotel-gold/20' 
+              {$page.url.pathname === item.href
+                ? 'bg-hotel-gold/10 text-hotel-gold border-hotel-gold/20'
                 : 'text-hotel-text-secondary hover:bg-hotel-surface hover:text-hotel-text-primary border-transparent'} border"
           >
             <div class="shrink-0 w-6 h-6 flex items-center justify-center">
@@ -115,7 +115,7 @@
     type="button"
     onclick={toggle}
     class="hidden lg:flex absolute -right-3 top-20 w-6 h-6 rounded-full
-          items-center justify-center shadow-xl hover:scale-110 transition-transform z-100 
+          items-center justify-center shadow-xl hover:scale-110 transition-transform z-100
           bg-hotel-gold text-hotel-bg border-2 border-hotel-bg"
     aria-label={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
   >

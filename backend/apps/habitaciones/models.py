@@ -11,9 +11,9 @@ class Habitacion(models.Model):
         ('Queen', 'Queen'),
     ]
     ESTADO = [
-        ('Limpia', 'Limpia'),
+        ('Disponible', 'Disponible'),
         ('Ocupada', 'Ocupada'),
-        ('Sucia', 'Sucia'),
+        ('Limpieza', 'Limpieza'),
         ('Mantenimiento', 'Mantenimiento'),
         ('Obra', 'Obra'),
     ]
@@ -24,7 +24,7 @@ class Habitacion(models.Model):
     capacidad_maxima = models.PositiveSmallIntegerField()
     categoria_tipo = models.CharField(max_length=25, choices=CATEGORIA_TIPO)
     precio_por_noche = models.DecimalField(max_digits=10, decimal_places=2)
-    estado = models.CharField(max_length=15, choices=ESTADO, default='Limpia')
+    estado = models.CharField(max_length=15, choices=ESTADO, default='Disponible')
     notas = models.TextField(blank=True)
     imagen = models.ImageField(upload_to='habitaciones/', null=True, blank=True)
 
