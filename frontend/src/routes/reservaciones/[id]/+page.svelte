@@ -86,6 +86,27 @@
     function volver() {
         goto('/reservaciones', { invalidateAll: true });
     }
+
+    async function abrirHojaRegistro() {
+        if (!reservacion) return;
+        try {
+            const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api';
+            const token = localStorage.getItem('auth_token');
+
+            const res = await fetch(`${apiUrl}/reportes/hoja-huesped/${reservacion.id}/`, {
+                headers: { 'Authorization': `Token ${token}` }
+            });
+
+            if (!res.ok) throw new Error('Error al generar la hoja');
+
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+            setTimeout(() => URL.revokeObjectURL(url), 10000);
+        } catch (err: any) {
+            toast.error(err.message || 'Error al abrir la hoja');
+        }
+    }
 </script>
 
 <svelte:head>
@@ -136,13 +157,11 @@
                 {/if}
             {/if}
 
-            <a href="{import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'}/reportes/hoja-huesped/{reservacion.id}/" target="_blank" class="no-underline">
-                <Button variant="secondary" size="md">
-                    <span class="flex items-center gap-1.5">
-                        <Icon name="file" class="w-4 h-4" /> Hoja de Registro
-                    </span>
-                </Button>
-            </a>
+            <Button variant="secondary" size="sm" onclick={abrirHojaRegistro}>
+                <span class="flex items-center gap-1.5">
+                    <Icon name="file" class="w-4 h-4" /> Hoja de Registro
+                </span>
+            </Button>
 
             <Button variant="ghost" size="md" onclick={volver}>Volver</Button>
         </div>

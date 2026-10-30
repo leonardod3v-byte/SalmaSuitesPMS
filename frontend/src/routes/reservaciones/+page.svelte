@@ -92,10 +92,31 @@
         }
     }
 
-    function descargarRegistroSemanal() {
-        const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api';
-        const fecha = semanaInicio.toISOString().split('T')[0];
-        window.open(`${apiUrl}/reportes/registro-reservaciones/?fecha=${fecha}`, '_blank');
+    async function descargarRegistroSemanal() {
+        try {
+            const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api';
+            const token = localStorage.getItem('auth_token');
+            const fecha = semanaInicio.toISOString().split('T')[0];
+
+            const res = await fetch(`${apiUrl}/reportes/registro-reservaciones/?fecha=${fecha}`, {
+                headers: {
+                    'Authorization': `Token ${token}`
+                }
+            });
+
+            if (!res.ok) {
+                throw new Error('Error al generar el reporte');
+            }
+
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+
+            window.open(url, '_blank');
+
+            setTimeout(() => URL.revokeObjectURL(url), 10000);
+        } catch (err: any) {
+            toast.error(err.message || 'Error al abrir el PDF');
+        }
     }
 
     // Filtrado local por estado

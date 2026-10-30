@@ -41,18 +41,24 @@
         }
     }
 
-    function exportarCSV() {
-        if (!datos?.detalle.length) return;
-        const headers = ['Hora', 'Reserva', 'Huésped', 'Método', 'Referencia', 'Monto'];
-        const rows = datos.detalle.map(d => [d.hora, `#${d.reserva_id}`, d.huesped, d.metodo_pago, d.numero_referencia || '—', d.monto]);
-        const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
-        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `cierre_caja_${fecha}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
+    async function abrirPDF() {
+        try {
+            const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api';
+            const token = localStorage.getItem('auth_token');
+
+            const res = await fetch(`${apiUrl}/reportes/cierre-caja-pdf/?fecha=${fecha}`, {
+                headers: { 'Authorization': `Token ${token}` }
+            });
+
+            if (!res.ok) throw new Error('Error al generar el PDF');
+
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+            setTimeout(() => URL.revokeObjectURL(url), 10000);
+        } catch (err: any) {
+            toast.error(err.message || 'Error al abrir el PDF');
+        }
     }
 
     onMount(() => cargar());
@@ -97,13 +103,11 @@
 
         <div class="flex flex-wrap items-center gap-2">
             {#if datos}
-                <a href="{import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'}/reportes/cierre-caja-pdf/?fecha={fecha}" target="_blank" class="no-underline">
-                    <Button variant="secondary" size="md">
-                        <span class="flex items-center gap-1.5">
-                            <Icon name="file" class="w-4 h-4" /> PDF
-                        </span>
-                    </Button>
-                </a>
+                <Button variant="secondary" size="md" onclick={abrirPDF}>
+                    <span class="flex items-center gap-1.5">
+                        <Icon name="file" class="w-4 h-4" /> PDF
+                    </span>
+                </Button>
                 {#if auth.isAdmin && !datos.cerrado}
                     <Button variant="danger" size="md" onclick={cerrarCaja} loading={cerrando}>
                         <span class="flex items-center gap-1.5">
