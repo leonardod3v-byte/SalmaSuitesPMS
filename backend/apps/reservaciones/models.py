@@ -2,6 +2,7 @@ from django.db import models
 from apps.huespedes.models import Huesped
 from apps.habitaciones.models import Habitacion
 from apps.usuarios.models import User
+from apps.empresas.models import Empresa
 
 class Reservacion(models.Model):
     ESTADO = [
@@ -23,6 +24,7 @@ class Reservacion(models.Model):
     ]
 
     id_huesped_titular = models.ForeignKey(Huesped, on_delete=models.PROTECT, related_name='reservaciones_titular')
+    id_empresa = models.ForeignKey(Empresa, on_delete=models.SET_NULL, null=True, blank=True, related_name='reservaciones')
     id_habitacion = models.ForeignKey(Habitacion, on_delete=models.PROTECT, related_name='reservaciones')
     fecha_entrada = models.DateField()
     fecha_salida = models.DateField()
@@ -51,11 +53,15 @@ class Reservacion(models.Model):
         return f"Reserva {self.id} - {self.id_huesped_titular}"
 
     def save(self, *args, **kwargs):
-        # Calcular noches y total habitación si no están fijados
         if self.fecha_entrada and self.fecha_salida:
             self.numero_noches = (self.fecha_salida - self.fecha_entrada).days
-            self.total_habitacion = self.numero_noches * self.id_habitacion.precio_por_noche
-        # total final y saldo se actualizarán en servicios
+
+            precio_a_usar = self.id_habitacion.precio_por_noche
+            if self.id_empresa and self.id_habitacion.precio_empresa:
+                precio_a_usar = self.id_habitacion.precio_empresa
+
+            self.total_habitacion = self.numero_noches * precio_a_usar
+
         super().save(*args, **kwargs)
 
 

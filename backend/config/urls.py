@@ -27,12 +27,13 @@ urlpatterns = [
     path('api/reportes/', include('apps.reportes.urls')),
     path('api/bitacora/', include('apps.bitacora.urls')),
     path('api/configuracion/', include('apps.configuracion.urls')),
+    path('api/empresas/', include('apps.empresas.urls')),
 ]
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-    
+
     # Debug toolbar
     try:
         import debug_toolbar

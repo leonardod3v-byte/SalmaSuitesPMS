@@ -4,6 +4,7 @@
     import InputHotel from '$components/ui/Input.svelte';
     import Select from '$components/ui/Select.svelte';
     import Button from '$components/ui/Button.svelte';
+    import Icon from '$components/ui/Icons.svelte';
     import { agregarConsumo } from '$lib/services/reservaciones';
     import { fetchProductos } from '$lib/services/inventario';
     import type { Producto } from '$lib/types/producto';
@@ -20,33 +21,47 @@
     let productos = $state<Producto[]>([]);
     let productoId = $state<number | null>(null);
     let cantidad = $state(1);
+    let filtroCategoria = $state('');
+
+    // Categorías disponibles
+    const categorias = [
+        { value: '', label: 'Todas las categorías' },
+        { value: 'Comida', label: 'Comida / Restaurante' },
+        { value: 'Bebida', label: 'Bebidas' },
+        { value: 'Snack', label: 'Snacks / Minibar' },
+        { value: 'Lavandería', label: 'Lavandería' },
+        { value: 'Llamadas', label: 'Llamadas' },
+    ];
 
     // Producto seleccionado
     let productoSeleccionado = $derived(
         productos.find(p => p.id === productoId) || null
     );
 
-    // Tipo derivado del producto
     let tipoConsumo = $derived(productoSeleccionado?.categoria || 'Otro');
-
-    // Precio derivado del producto
-    let precioUnitario = $derived(
-        productoSeleccionado ? parseFloat(productoSeleccionado.precio_venta) : 0
-    );
-
-    // Total
+    let precioUnitario = $derived(productoSeleccionado ? parseFloat(productoSeleccionado.precio_venta) : 0);
     let total = $derived(cantidad * precioUnitario);
 
-    // Productos agrupados por categoría para el Select
+    // Filtrar productos por categoría
+    let productosFiltrados = $derived(
+        filtroCategoria
+            ? productos.filter(p => p.categoria === filtroCategoria && p.activo !== false)
+            : productos.filter(p => p.activo !== false)
+    );
+
     let opcionesProductos = $derived([
         { value: '', label: 'Seleccionar producto/servicio...' },
-        ...productos
-            .filter(p => p.activo !== false)
-            .map(p => ({
-                value: String(p.id),
-                label: `${p.nombre} — $${p.precio_venta} (${p.categoria})`
-            }))
+        ...productosFiltrados.map(p => ({
+            value: String(p.id),
+            label: `${p.nombre} — $${p.precio_venta}`
+        }))
     ]);
+
+    // Evaluar si hay stock bajo
+    let stockBajo = $derived(
+        productoSeleccionado?.maneja_stock &&
+        parseFloat(productoSeleccionado.stock_actual) <= parseFloat(productoSeleccionado.stock_minimo)
+    );
 
     onMount(async () => {
         try {
@@ -56,7 +71,13 @@
 
     function seleccionarProducto(value: string) {
         productoId = Number(value) || null;
-        cantidad = 1; // Resetear cantidad al cambiar producto
+        cantidad = 1;
+    }
+
+    // Resetear producto si cambia la categoría
+    function cambiarCategoria() {
+        productoId = null;
+        cantidad = 1;
     }
 
     async function guardar() {
@@ -89,48 +110,68 @@
 </script>
 
 <div class="space-y-5">
-    <!-- Producto/Servicio -->
+    <!-- Selección de categoría y producto -->
     <div class="p-4 rounded-2xl bg-hotel-bg/40 border border-hotel-border space-y-4">
-        <p class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-gold">Producto o Servicio</p>
-        <Select
-            label="Seleccionar"
-            options={opcionesProductos}
-            value={String(productoId || '')}
-            onchange={(e: any) => seleccionarProducto(e.target.value)}
-        />
+        <p class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-gold">1. ¿Qué desea consumir?</p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <Select
+                    label="Categoría"
+                    options={categorias}
+                    bind:value={filtroCategoria}
+                    onchange={cambiarCategoria}
+                />
+            </div>
+            <div>
+                <Select
+                    label="Producto / Servicio"
+                    options={opcionesProductos}
+                    value={String(productoId || '')}
+                    onchange={(e: any) => seleccionarProducto(e.target.value)}
+                />
+            </div>
+        </div>
     </div>
 
-    <!-- Info del producto seleccionado -->
+    <!-- Detalles del producto seleccionado -->
     {#if productoSeleccionado}
-        <div class="p-4 rounded-2xl bg-hotel-bg/40 border border-hotel-border space-y-3">
-            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-gold">Detalle</p>
+        <div class="p-4 rounded-2xl bg-hotel-bg/40 border border-hotel-border space-y-4 animate-in fade-in slide-in-from-top-2">
+            <div class="flex items-start justify-between">
+                <p class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-gold">2. Detalles del Consumo</p>
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-hotel-surface border border-hotel-border text-hotel-text-tertiary uppercase">
+                    {tipoConsumo}
+                </span>
+            </div>
 
-            <div class="grid grid-cols-2 gap-3 text-sm">
+            <div class="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                    <p class="text-[10px] uppercase text-hotel-text-tertiary">Tipo</p>
-                    <p class="font-bold text-hotel-text-primary">{tipoConsumo}</p>
+                    <p class="text-[10px] uppercase text-hotel-text-tertiary mb-0.5">Precio Unitario</p>
+                    <p class="font-bold text-hotel-gold text-lg">${precioUnitario.toFixed(2)}</p>
                 </div>
                 <div>
-                    <p class="text-[10px] uppercase text-hotel-text-tertiary">Precio Unitario</p>
-                    <p class="font-bold text-hotel-gold">${precioUnitario.toFixed(2)}</p>
-                </div>
-                <div>
-                    <p class="text-[10px] uppercase text-hotel-text-tertiary">Stock disponible</p>
-                    <p class="font-bold text-hotel-text-primary">
-                        {productoSeleccionado.maneja_stock ? productoSeleccionado.stock_actual : 'Ilimitado'}
-                    </p>
-                </div>
-                <div>
-                    <p class="text-[10px] uppercase text-hotel-text-tertiary">Unidad</p>
-                    <p class="font-bold text-hotel-text-primary">{productoSeleccionado.unidad}</p>
+                    <p class="text-[10px] uppercase text-hotel-text-tertiary mb-0.5">Stock disponible</p>
+                    {#if productoSeleccionado.maneja_stock}
+                        <p class="font-bold {stockBajo ? 'text-hotel-error-light' : 'text-hotel-text-primary'} flex items-center gap-1.5">
+                            {productoSeleccionado.stock_actual} {productoSeleccionado.unidad}s
+                            {#if stockBajo}
+                                <Icon name="alert" class="w-3.5 h-3.5" />
+                            {/if}
+                        </p>
+                    {:else}
+                        <p class="font-bold text-hotel-success-light">Ilimitado</p>
+                    {/if}
                 </div>
             </div>
 
-            <InputHotel label="Cantidad" type="number" bind:value={cantidad} />
+            <div class="pt-2">
+                <InputHotel label="Cantidad a consumir" type="number" bind:value={cantidad} />
+            </div>
 
+            <!-- Total -->
             <div class="flex items-center justify-between p-3 rounded-xl bg-hotel-gold/5 border border-hotel-gold/20">
-                <span class="text-sm text-hotel-text-secondary">Total</span>
-                <span class="text-lg font-bold text-hotel-gold">${total.toFixed(2)}</span>
+                <span class="text-sm font-medium text-hotel-text-secondary">Total a cargar</span>
+                <span class="text-xl font-bold text-hotel-gold">${total.toFixed(2)}</span>
             </div>
         </div>
     {/if}

@@ -44,34 +44,52 @@
     }, new Map<number, typeof habitaciones>())
   );
 
-  const fmtCabecera = (d: Date) => 
+  const fmtCabecera = (d: Date) =>
     d.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit' });
+
+  // Clases para los estados de la reserva
+  const getEstadoBadge = (estado: string) => {
+    switch (estado) {
+      case 'Confirmada': return 'bg-hotel-info/10 text-hotel-info-light border-hotel-info/30';
+      case 'EnCurso': return 'bg-hotel-gold/10 text-hotel-gold-light border-hotel-gold/30';
+      case 'Finalizada': return 'bg-hotel-success/10 text-hotel-success-light border-hotel-success/30';
+      case 'Cancelada': return 'bg-hotel-error/10 text-hotel-error-light border-hotel-error/30';
+      case 'NoShow': return 'bg-hotel-text-tertiary/10 text-hotel-text-tertiary border-hotel-text-tertiary/30';
+      default: return 'bg-hotel-surface border-hotel-border text-hotel-text-secondary';
+    }
+  };
 </script>
 
 <div class="overflow-hidden rounded-2xl border border-hotel-border bg-hotel-surface shadow-hotel-lg">
   <div class="overflow-x-auto custom-scrollbar">
-    <table class="w-full border-collapse text-xs min-w-[900px]">
+    <table class="w-full border-collapse text-xs min-w-225">
       <thead>
         <tr class="bg-hotel-bg/50 backdrop-blur-sm">
-          <th class="sticky left-0 z-20 bg-hotel-bg border-b border-r border-hotel-border px-4 py-4 text-left w-44 shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">
+          <!-- Columna de Habitación -->
+          <th class="sticky left-0 z-20 bg-hotel-bg border-b border-r border-hotel-border px-4 py-4 text-left w-32 shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">
             <div class="space-y-1">
-              <p class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-gold">Habitación</p>
-              <p class="text-[9px] font-medium text-hotel-text-tertiary">Categoría y Nivel</p>
+              <p class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-gold">Hab.</p>
+              <p class="text-[9px] font-medium text-hotel-text-tertiary">Nivel</p>
             </div>
           </th>
 
+          <!-- Días de la semana -->
           {#each diasSemana as dia, i}
             {@const isToday = toISO(dia) === hoy}
-            <th class="border-b border-hotel-border px-2 py-4 text-center min-w-[100px] transition-colors {isToday ? 'bg-hotel-gold/10' : ''}">
+            {@const isWeekend = dia.getDay() === 0 || dia.getDay() === 6}
+            <th class="border-b border-r border-hotel-border/50 px-2 py-4 text-center min-w-22.5 transition-colors
+              {isToday ? 'bg-hotel-gold/15' : isWeekend ? 'bg-hotel-bg/40' : ''}">
               <p class="font-black uppercase tracking-widest {isToday ? 'text-hotel-gold' : 'text-hotel-text-secondary'}">{DIAS_ES[i]}</p>
               <p class="text-hotel-text-tertiary font-mono text-[10px]">{fmtCabecera(dia)}</p>
             </th>
           {/each}
 
-          <th class="border-b border-l border-hotel-border px-4 py-4 text-left min-w-[180px] bg-hotel-bg/30">
+          <!-- Info del huésped -->
+          <th class="border-b border-l border-hotel-border px-4 py-4 text-left min-w-45 bg-hotel-bg/30">
             <p class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-text-tertiary">Huésped Titular</p>
           </th>
-          <th class="border-b border-l border-hotel-border px-4 py-4 text-center w-20 bg-hotel-bg/30">
+          <!-- Estado -->
+          <th class="border-b border-l border-hotel-border px-4 py-4 text-center w-28 bg-hotel-bg/30">
             <p class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-text-tertiary leading-tight">Estado</p>
           </th>
         </tr>
@@ -79,9 +97,10 @@
 
       <tbody>
         {#each [...pisos.entries()].sort((a, b) => a[0] - b[0]) as [piso, habs]}
+          <!-- Separador de Piso -->
           <tr class="select-none">
             <td colspan="10" class="bg-hotel-bg/80 px-4 py-1.5 text-[9px] font-black uppercase tracking-[0.3em] text-hotel-gold/70 border-y border-hotel-border/50">
-              Nivel {piso} — Planta {piso === 1 ? 'Principal' : 'Superior'}
+              Piso {piso} — {piso === 1 ? 'Planta Principal' : 'Planta Superior'}
             </td>
           </tr>
 
@@ -89,7 +108,8 @@
             {@const rSemana = diasSemana.map(d => mapaReservas.get(`${hab.numero}-${toISO(d)}`))}
             {@const pReserva = rSemana.find(r => r)}
 
-            <tr class="group hover:bg-hotel-surface-hover/40 transition-colors border-b border-hotel-border/20">
+            <tr class="group hover:bg-hotel-surface-hover/60 transition-colors border-b border-hotel-border/20">
+              <!-- Celda Habitación (Sticky) -->
               <td class="sticky left-0 z-10 bg-hotel-surface group-hover:bg-hotel-bg border-r border-hotel-border px-4 py-3 shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)] transition-colors">
                 <p class="font-display font-black italic text-base text-hotel-text-primary group-hover:text-hotel-gold transition-colors">
                   {hab.numero}
@@ -97,23 +117,28 @@
                 <p class="text-[9px] font-bold text-hotel-text-tertiary uppercase truncate leading-none mt-1">{hab.tipo_nombre}</p>
               </td>
 
+              <!-- Celdas de los días -->
               {#each diasSemana as dia, i}
                 {@const reserva = rSemana[i]}
                 {@const isToday = toISO(dia) === hoy}
+                {@const isWeekend = dia.getDay() === 0 || dia.getDay() === 6}
                 {@const isStart = reserva?.fecha_entrada === toISO(dia)}
                 {@const isEnd = reserva?.fecha_salida === toISO(new Date(dia.getTime() + 86400000))}
                 {@const config = reserva ? TIPOS_CLIENTE[reserva.tipo_cliente as keyof typeof TIPOS_CLIENTE] : null}
 
-                <td 
-                  class="border-r border-hotel-border/10 p-1 text-center cursor-pointer relative transition-all duration-200 {isToday ? 'bg-hotel-gold/0.03' : ''} {!reserva ? 'hover:bg-hotel-gold/10' : ''}"
+                <td
+                  class="border-r border-hotel-border/20 p-1 text-center cursor-pointer relative transition-all duration-200
+                    {isToday ? 'bg-hotel-gold/5' : isWeekend ? 'bg-hotel-bg/20' : ''}
+                    {!reserva ? 'hover:bg-hotel-gold/10' : 'hover:bg-black/5'}"
                   onclick={() => onCeldaClick(hab.numero, toISO(dia))}
                 >
                   <div class="flex items-center justify-center h-10">
                     {#if reserva}
-                      <div 
-                          class="w-8 h-8 rounded-full border-2 flex items-center justify-center transition-transform group-hover/cell:scale-110 shadow-sm"
+                      <div
+                          class="w-8 h-8 rounded-full border-2 flex items-center justify-center transition-transform hover:scale-110 shadow-md relative group/tooltip"
                           style="background: {config?.bg}; border-color: {config?.color}; color: {config?.text}"
                       >
+                        <!-- Lógica de iconos: Inicio, Fin, Intermedio -->
                         {#if isStart}
                           <Icon name="arrow-right" class="w-4 h-4" />
                         {:else if isEnd}
@@ -121,25 +146,35 @@
                         {:else}
                           <div class="w-2.5 h-2.5 rounded-full" style="background: {config?.text}"></div>
                         {/if}
+
+                        <!-- Tooltip nativo rápido con el nombre del huésped -->
+                        <div class="absolute bottom-full mb-1 hidden group-hover/tooltip:block bg-hotel-bg border border-hotel-border text-white text-[9px] px-2 py-1 rounded shadow-lg whitespace-nowrap z-50 pointer-events-none">
+                          {reserva.huesped_nombre}
+                        </div>
                       </div>
                     {:else}
-                      <div class="w-8 h-8 rounded-full border-2 border-dashed border-hotel-border/40 opacity-20 hover:opacity-100 hover:border-hotel-gold/50 transition-all"></div>
+                      <!-- Celda vacía -->
+                      <div class="w-8 h-8 rounded-full border-2 border-dashed border-hotel-border/40 opacity-0 group-hover:opacity-100 hover:border-hotel-gold/50 transition-all"></div>
                     {/if}
                   </div>
                 </td>
               {/each}
 
+              <!-- Info del huésped (se muestra una vez por fila) -->
               <td class="border-l border-hotel-border/40 px-4 py-2 bg-hotel-bg/10">
                 {#if pReserva}
-                  <p class="text-[11px] font-black text-hotel-text-primary truncate max-w-[160px] uppercase">{pReserva.huesped_nombre}</p>
+                  <p class="text-[11px] font-black text-hotel-text-primary truncate max-w-40 uppercase" title="{pReserva.huesped_nombre}">
+                    {pReserva.huesped_nombre}
+                  </p>
                   <p class="text-[9px] font-mono text-hotel-text-tertiary">{pReserva.huesped_documento}</p>
                 {/if}
               </td>
 
+              <!-- Estado -->
               <td class="border-l border-hotel-border/40 px-4 py-2 text-center bg-hotel-bg/10">
                 {#if pReserva}
-                  <span class="inline-block px-2 py-0.5 rounded-md bg-hotel-surface border border-hotel-border text-[8px] font-black uppercase tracking-tighter text-hotel-text-secondary">
-                    {pReserva.estado.slice(0, 8)}
+                  <span class="inline-block px-2 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-tighter {getEstadoBadge(pReserva.estado)}">
+                    {pReserva.estado === 'EnCurso' ? 'En Curso' : pReserva.estado}
                   </span>
                 {/if}
               </td>
@@ -151,6 +186,7 @@
   </div>
 </div>
 
+<!-- Leyenda de simbología -->
 <div class="flex flex-wrap items-center gap-4 mt-6 px-2">
   <span class="text-[9px] font-black uppercase tracking-[0.2em] text-hotel-text-tertiary mr-2 border-r border-hotel-border pr-4">Simbología:</span>
   {#each Object.entries(TIPOS_CLIENTE) as [, cfg]}

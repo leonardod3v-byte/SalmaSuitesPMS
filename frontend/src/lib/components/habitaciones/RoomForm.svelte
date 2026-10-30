@@ -26,7 +26,8 @@
     let capacidad_maxima = $state<number | ''>(1);
     let categoria_tipo = $state('Uni-Familiar');
     let precio_por_noche = $state<number | ''>('');
-    let estado = $state('Disponible'); // CAMBIADO
+    let precio_empresa = $state<number | ''>('');
+    let estado = $state('Disponible');
     let notas = $state('');
     let imagenFile = $state<File | null>(null);
     let imagenPreview = $state<string | null>(null);
@@ -41,7 +42,6 @@
         { value: 'Matrimonial', label: 'Matrimonial' },
     ];
 
-    // CAMBIADO
     const estadosHabitacion = [
         { value: 'Disponible', label: 'Disponible' },
         { value: 'Limpieza', label: 'Limpieza' },
@@ -58,7 +58,8 @@
                 cantidad_camas = data.cantidad_camas;
                 capacidad_maxima = data.capacidad_maxima;
                 categoria_tipo = data.categoria_tipo;
-                precio_por_noche = Number(data.precio_por_noche) || ''; // Arreglo del Bug 1
+                precio_por_noche = Number(data.precio_por_noche) || '';
+                precio_empresa = data.precio_empresa ? Number(data.precio_empresa) : '';
                 estado = data.estado;
                 notas = data.notas || '';
             } catch (e: any) {
@@ -79,6 +80,9 @@
         formData.append('capacidad_maxima', String(capacidad_maxima));
         formData.append('categoria_tipo', categoria_tipo);
         formData.append('precio_por_noche', String(precio_por_noche));
+
+        formData.append('precio_empresa', precio_empresa !== '' ? String(precio_empresa) : '');
+
         formData.append('estado', estado);
         formData.append('notas', notas);
         if (imagenFile) {
@@ -159,7 +163,7 @@
     </div>
 
     <div class="p-5 rounded-2xl bg-hotel-bg/40 border border-hotel-border space-y-4">
-        <p class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-gold">Configuración</p>
+        <p class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-gold">Configuración y Tarifas</p>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <InputHotel label="Cantidad de Camas" type="number" bind:value={cantidad_camas} required />
             <InputHotel label="Capacidad Máxima" type="number" bind:value={capacidad_maxima} required />
@@ -167,6 +171,9 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select label="Categoría / Tipo" options={tiposHabitacion} bind:value={categoria_tipo} required />
             <InputHotel label="Precio por Noche ($)" type="number" bind:value={precio_por_noche} required={!id} placeholder="Ej: 45.00" />
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <InputHotel label="Precio Empresa ($)" type="number" bind:value={precio_empresa} placeholder="Opcional (tarifa corporativa)" />
         </div>
     </div>
 

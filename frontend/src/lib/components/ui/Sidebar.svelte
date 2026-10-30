@@ -19,11 +19,12 @@
 
   const logout = () => auth.logout();
 
-  type MenuKey = 'dashboard' | 'habitaciones' | 'huespedes' | 'reservaciones' | 'inventario' | 'reportes' | 'user' | 'config';
+  type MenuKey = 'dashboard' | 'habitaciones' | 'huespedes' | 'empresas' | 'reservaciones' | 'inventario' | 'reportes' | 'user' | 'config';
   const menuItems: { key: MenuKey; label: string; href: string; adminOnly?: boolean }[] = [
     { key: 'dashboard',   label: 'Dashboard',    href: '/dashboard' },
     { key: 'habitaciones', label: 'Habitaciones', href: '/habitaciones' },
     { key: 'huespedes',    label: 'Huéspedes',    href: '/huespedes' },
+    { key: 'empresas',     label: 'Empresas',     href: '/empresas' },
     { key: 'reservaciones', label: 'Reservas', href: '/reservaciones' },
     { key: 'inventario',   label: 'Inventario',   href: '/inventario' },
     { key: 'reportes',     label: 'Reportes',     href: '/reportes' },

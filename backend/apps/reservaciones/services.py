@@ -11,11 +11,18 @@ from apps.bitacora.services import registrar_actividad
 
 def _calcular_totales(reservacion, calcular_consumos=False):
     reservacion.numero_noches = (reservacion.fecha_salida - reservacion.fecha_entrada).days
-    reservacion.total_habitacion = reservacion.numero_noches * reservacion.id_habitacion.precio_por_noche
+
+    precio_a_usar = reservacion.id_habitacion.precio_por_noche
+    if reservacion.id_empresa and reservacion.id_habitacion.precio_empresa:
+        precio_a_usar = reservacion.id_habitacion.precio_empresa
+
+    reservacion.total_habitacion = reservacion.numero_noches * precio_a_usar
+
     if calcular_consumos and reservacion.pk:
         reservacion.monto_total_consumos = reservacion.consumos.aggregate(s=models.Sum('total'))['s'] or Decimal('0.00')
     else:
         reservacion.monto_total_consumos = Decimal('0.00')
+
     reservacion.monto_total_final = reservacion.total_habitacion + reservacion.monto_total_consumos
     reservacion.saldo_pendiente = reservacion.monto_total_final - reservacion.monto_pagado
 
@@ -33,7 +40,6 @@ def _validar_solapamiento(habitacion_id, fecha_entrada, fecha_salida, excluir_re
 def _validar_limite_credito(huesped, nuevo_total):
     if not huesped.limite_credito or huesped.limite_credito == 0:
         return
-    # Sumar saldos pendientes de crédito
     pendiente = Reservacion.objects.filter(
         id_huesped_titular=huesped,
         modalidad_pago='Crédito',
@@ -47,6 +53,7 @@ def _validar_limite_credito(huesped, nuevo_total):
 def crear_reservacion(
     id_huesped_titular,
     id_habitacion,
+    id_empresa,
     fecha_entrada,
     fecha_salida,
     modalidad_pago,
@@ -57,7 +64,6 @@ def crear_reservacion(
     monto_abonado=Decimal('0.00'),
     usuario=None
 ):
-    # Validar huésped titular
     try:
         titular = Huesped.objects.get(pk=id_huesped_titular)
     except Huesped.DoesNotExist:
@@ -66,7 +72,6 @@ def crear_reservacion(
     if not validar_disponibilidad_huesped(titular.id):
         raise ValidationError('El huésped ya posee una estancia activa.')
 
-    # Validar acompañantes (se asume que acompanantes es lista de ids)
     if acompanantes:
         for acomp_id in acompanantes:
             if not validar_disponibilidad_huesped(acomp_id):
@@ -76,12 +81,11 @@ def crear_reservacion(
 
     total_personas = 1 + (len(acompanantes) if acompanantes else 0)
 
-    # Validar habitación
     try:
         habitacion = Habitacion.objects.get(pk=id_habitacion)
     except Habitacion.DoesNotExist:
         raise ValidationError('Habitación no encontrada.')
-    if habitacion.estado != 'Limpia':
+    if habitacion.estado != 'Disponible':
         raise ValidationError('La habitación no está disponible.')
     if habitacion.capacidad_maxima < total_personas:
         raise ValidationError('La habitación no tiene capacidad suficiente.')
@@ -102,6 +106,7 @@ def crear_reservacion(
     reserva = Reservacion(
         id_huesped_titular=titular,
         id_habitacion=habitacion,
+        id_empresa_id=id_empresa,
         fecha_entrada=fecha_entrada,
         fecha_salida=fecha_salida,
         modalidad_pago=modalidad_pago,
@@ -129,7 +134,6 @@ def crear_reservacion(
 
     # Manejar pago inicial
     if modalidad_pago == 'Contado':
-        # Pago total inmediato
         Pago.objects.create(
             id_reservacion=reserva,
             monto=reserva.total_habitacion,
@@ -165,15 +169,14 @@ def crear_reservacion(
     registrar_actividad('Creación Reserva', f'Reserva #{reserva.id} creada para {titular}', usuario, f'Reserva-{reserva.id}')
     return reserva
 
-
 @transaction.atomic
 def realizar_checkin(reserva_id, usuario):
     reserva = Reservacion.objects.select_for_update().get(pk=reserva_id)
     if reserva.estado != 'Confirmada':
         raise ValidationError('La reserva no está confirmada.')
     habitacion = reserva.id_habitacion
-    if habitacion.estado != 'Limpia':
-        raise ValidationError('La habitación ya no está limpia.')
+    if habitacion.estado != 'Disponible':
+        raise ValidationError('La habitación ya no está disponible.')
 
     cambiar_estado_habitacion(habitacion, 'Ocupada')
     reserva.estado = 'EnCurso'
@@ -182,24 +185,21 @@ def realizar_checkin(reserva_id, usuario):
     registrar_actividad('Check‑in', f'Check‑in habitación {habitacion.numero} - {reserva.id_huesped_titular}', usuario, f'Reserva-{reserva.id}')
     return reserva
 
-
 @transaction.atomic
 def realizar_checkout(reserva_id, usuario):
     reserva = Reservacion.objects.select_for_update().get(pk=reserva_id)
     if reserva.estado != 'EnCurso':
         raise ValidationError('La reserva no está en curso.')
 
-    # Verificar saldo si no es crédito
     if reserva.modalidad_pago in ['Contado', 'Abono'] and reserva.saldo_pendiente > 0:
         raise ValidationError('El saldo pendiente debe ser 0 para cerrar la reserva.')
 
-    cambiar_estado_habitacion(reserva.id_habitacion, 'Sucia')
+    cambiar_estado_habitacion(reserva.id_habitacion, 'Limpieza')
     reserva.estado = 'Finalizada'
     reserva.fecha_checkout_real = timezone.now()
     reserva.save()
     registrar_actividad('Check‑out', f'Check‑out habitación {reserva.id_habitacion.numero} - {reserva.id_huesped_titular}', usuario, f'Reserva-{reserva.id}')
     return reserva
-
 
 def agregar_consumo(reserva_id, tipo, descripcion, cantidad, precio_unitario, producto=None, usuario=None):
     reserva = Reservacion.objects.get(pk=reserva_id)
@@ -214,24 +214,23 @@ def agregar_consumo(reserva_id, tipo, descripcion, cantidad, precio_unitario, pr
             precio_unitario=precio_unitario,
             producto=producto
         )
-        # Actualizar totales
         _calcular_totales(reserva, calcular_consumos=True)
         reserva.save()
         registrar_actividad('Consumo', f'Consumo {tipo} por ${consumo.total} agregado a reserva #{reserva.id}', usuario, f'Consumo-{consumo.id}')
         return consumo
 
-
 def registrar_pago_extra(reserva_id, monto, metodo_pago, numero_referencia='', usuario=None):
     reserva = Reservacion.objects.get(pk=reserva_id)
-    if monto > reserva.saldo_pendiente:
-        raise ValidationError(f'El monto a pagar (${monto}) supera el saldo pendiente (${reserva.saldo_pendiente}).')
+
     if monto <= 0:
         raise ValidationError('El monto debe ser mayor a 0.')
-    # Permitir pagos en Confirmada (si abono/crédito) y EnCurso (todas)
+    if monto > reserva.saldo_pendiente:
+        raise ValidationError(f'El monto a pagar (${monto}) supera el saldo pendiente (${reserva.saldo_pendiente}).')
+
     if reserva.estado not in ['Confirmada', 'EnCurso']:
-        # También permitir en Finalizada si crédito y saldo >0
         if not (reserva.estado == 'Finalizada' and reserva.modalidad_pago == 'Crédito' and reserva.saldo_pendiente > 0):
             raise ValidationError('No se pueden registrar pagos en este estado.')
+
     with transaction.atomic():
         pago = Pago.objects.create(
             id_reservacion=reserva,
@@ -246,7 +245,6 @@ def registrar_pago_extra(reserva_id, monto, metodo_pago, numero_referencia='', u
         registrar_actividad('Pago', f'Pago de ${monto} ({metodo_pago}) a reserva #{reserva.id}', usuario, f'Pago-{pago.id}')
         return pago
 
-
 def cancelar_reservacion(reserva_id, motivo, acta='', usuario=None):
     reserva = Reservacion.objects.get(pk=reserva_id)
     if reserva.estado != 'Confirmada':
@@ -257,7 +255,6 @@ def cancelar_reservacion(reserva_id, motivo, acta='', usuario=None):
     reserva.save()
     registrar_actividad('Cancelación', f'Reserva #{reserva.id} cancelada: {motivo}', usuario, f'Reserva-{reserva.id}')
     return reserva
-
 
 def marcar_noshow(reserva_id, motivo, acta='', usuario=None):
     reserva = Reservacion.objects.get(pk=reserva_id)
@@ -271,7 +268,6 @@ def marcar_noshow(reserva_id, motivo, acta='', usuario=None):
     reserva.save()
     registrar_actividad('No‑show', f'Reserva #{reserva.id} no-show: {motivo}', usuario, f'Reserva-{reserva.id}')
     return reserva
-
 
 def obtener_resumen_para_checkout(reserva):
     return {

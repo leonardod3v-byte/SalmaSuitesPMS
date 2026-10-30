@@ -1,17 +1,17 @@
 <script lang="ts">
-  let { 
-    width = 'w-full', 
-    height = 'h-4', 
-    rounded = 'rounded-lg' 
-  }: { 
-    width?: string, 
-    height?: string, 
-    rounded?: string 
+  let {
+    width = 'w-full',
+    height = 'h-4',
+    rounded = 'rounded-lg'
+  }: {
+    width?: string,
+    height?: string,
+    rounded?: string
   } = $props();
 </script>
 
 <div class="{width} {height} {rounded} bg-hotel-surface-hover relative overflow-hidden border border-hotel-border/50">
-  <div class="absolute inset-0 -translate-x-full animate-shimmer 
+  <div class="absolute inset-0 -translate-x-full animate-shimmer
     bg-linear-to-r from-transparent via-hotel-gold/5 to-transparent">
   </div>
 </div>

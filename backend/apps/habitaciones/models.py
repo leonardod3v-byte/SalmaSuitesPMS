@@ -24,6 +24,8 @@ class Habitacion(models.Model):
     capacidad_maxima = models.PositiveSmallIntegerField()
     categoria_tipo = models.CharField(max_length=25, choices=CATEGORIA_TIPO)
     precio_por_noche = models.DecimalField(max_digits=10, decimal_places=2)
+    precio_empresa = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Si se deja vacío, se usará el precio normal")
+
     estado = models.CharField(max_length=15, choices=ESTADO, default='Disponible')
     notas = models.TextField(blank=True)
     imagen = models.ImageField(upload_to='habitaciones/', null=True, blank=True)

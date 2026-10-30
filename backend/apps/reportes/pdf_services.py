@@ -23,14 +23,16 @@ def _get_config():
 
 
 def _get_logo_path():
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    logo_path = os.path.join(base_dir, 'assets', 'logo.png')
+    if os.path.exists(logo_path):
+        return logo_path
+
     config = _get_config()
     logo_nombre = config.get('logo', '')
     if logo_nombre:
         if logo_nombre.lower().endswith('.svg'):
             logo_nombre = logo_nombre[:-4] + '.png'
-        ruta_frontend_static = os.path.join(settings.BASE_DIR.parent, 'frontend', 'static', logo_nombre)
-        if os.path.exists(ruta_frontend_static):
-            return ruta_frontend_static
         ruta_media = os.path.join(settings.MEDIA_ROOT, logo_nombre)
         if os.path.exists(ruta_media):
             return ruta_media
@@ -59,19 +61,19 @@ def generar_hoja_huesped(reserva):
     doc = SimpleDocTemplate(
         buffer,
         pagesize=(page_width, page_height),
-        topMargin=12 * mm,
-        bottomMargin=12 * mm,
-        leftMargin=15 * mm,
-        rightMargin=15 * mm,
+        topMargin=10 * mm,
+        bottomMargin=10 * mm,
+        leftMargin=12 * mm,
+        rightMargin=12 * mm,
     )
 
-    ancho_util = page_width - 30 * mm
+    ancho_util = page_width - 24 * mm
 
     elements = []
     styles = getSampleStyleSheet()
 
-    style_title = ParagraphStyle('Title2', parent=styles['Title'], fontSize=10, leading=12, alignment=TA_CENTER, spaceAfter=2)
-    style_subtitle = ParagraphStyle('Sub2', parent=styles['Normal'], fontSize=6, leading=8, alignment=TA_CENTER, textColor=colors.grey)
+    style_title = ParagraphStyle('Title2', parent=styles['Title'], fontSize=11, leading=13, alignment=TA_CENTER, spaceAfter=2)
+    style_subtitle = ParagraphStyle('Sub2', parent=styles['Normal'], fontSize=7, leading=9, alignment=TA_CENTER, textColor=colors.grey)
     style_label = ParagraphStyle('Label', parent=styles['Normal'], fontSize=6.5, leading=8, fontName='Helvetica-Bold')
     style_small = ParagraphStyle('Small', parent=styles['Normal'], fontSize=6, leading=7)
     style_header = ParagraphStyle('HeaderT', parent=styles['Normal'], fontSize=6, leading=8, fontName='Helvetica-Bold', textColor=colors.white)
@@ -93,9 +95,10 @@ def generar_hoja_huesped(reserva):
     total_general = total_habitacion + total_consumos
     titular = reserva.id_huesped_titular
 
+    # Logo
     logo_path = _get_logo_path()
     if logo_path:
-        logo = Image(logo_path, width=20 * mm, height=10 * mm)
+        logo = Image(logo_path, width=25 * mm, height=12 * mm)
         logo.hAlign = 'CENTER'
         elements.append(logo)
         elements.append(Spacer(1, 1 * mm))
@@ -109,6 +112,7 @@ def generar_hoja_huesped(reserva):
     elements.append(Paragraph('<b>HOJA DE REGISTRO DE HUÉSPED</b>', style_title))
     elements.append(Spacer(1, 2 * mm))
 
+    # --- FILA 1: Fecha y Habitación ---
     fila1 = [[
         Paragraph(f'<b>Día:</b> {hoy.day}', style_label),
         Paragraph(f'<b>Mes:</b> {hoy.month}', style_label),
@@ -116,44 +120,53 @@ def generar_hoja_huesped(reserva):
         Paragraph(f'<b>Nº Hab:</b> {reserva.id_habitacion.numero}', style_label),
     ]]
     tabla_fila1 = Table(fila1, colWidths=[ancho_util * 0.25] * 4)
-    tabla_fila1.setStyle(_estilo_celdas())
-    elements.append(Spacer(1, 1.5 * mm))
+    tabla_fila1.setStyle(_estilo_celdas(background='#f5f5f5'))
     elements.append(tabla_fila1)
     elements.append(Spacer(1, 1.5 * mm))
 
+    # --- FILA 2: Nombre y Apellido ---
     fila2 = [[
-        Paragraph(f'<b>Nombre:</b> {titular.nombres} {titular.apellidos}', style_label),
-        Paragraph(f'<b>C.I.:</b> {titular.tipo_documento}-{titular.numero_documento}', style_label),
-        Paragraph(f'<b>Edad:</b> {titular.edad}', style_label),
+        Paragraph(f'<b>Nombre:</b> {titular.nombres}', style_label),
+        Paragraph(f'<b>Apellido:</b> {titular.apellidos}', style_label),
     ]]
-    tabla_fila2 = Table(fila2, colWidths=[ancho_util * 0.50, ancho_util * 0.30, ancho_util * 0.20])
+    tabla_fila2 = Table(fila2, colWidths=[ancho_util * 0.50] * 2)
     tabla_fila2.setStyle(_estilo_celdas())
-    elements.append(Spacer(1, 1.5 * mm))
     elements.append(tabla_fila2)
     elements.append(Spacer(1, 1.5 * mm))
 
+    # --- FILA 3: Cédula, Edad, Nacionalidad ---
     fila3 = [[
+        Paragraph(f'<b>C.I.:</b> {titular.tipo_documento}-{titular.numero_documento}', style_label),
+        Paragraph(f'<b>Edad:</b> {titular.edad}', style_label),
         Paragraph(f'<b>Nacionalidad:</b> {titular.nacionalidad}', style_label),
-        Paragraph(f'<b>Estado Civil:</b> {titular.estado_civil}', style_label),
-        Paragraph(f'<b>F. Nac.:</b> {titular.fecha_nacimiento.strftime("%d/%m/%Y")}', style_label),
     ]]
-    tabla_fila3 = Table(fila3, colWidths=[ancho_util * 0.33] * 3)
+    tabla_fila3 = Table(fila3, colWidths=[ancho_util * 0.40, ancho_util * 0.20, ancho_util * 0.40])
     tabla_fila3.setStyle(_estilo_celdas())
-    elements.append(Spacer(1, 1.5 * mm))
     elements.append(tabla_fila3)
     elements.append(Spacer(1, 1.5 * mm))
 
+    # --- FILA 4: Estado Civil, F. Nacimiento, Procedencia ---
     fila4 = [[
+        Paragraph(f'<b>Estado Civil:</b> {titular.estado_civil}', style_label),
+        Paragraph(f'<b>F. Nac.:</b> {titular.fecha_nacimiento.strftime("%d/%m/%Y")}', style_label),
         Paragraph(f'<b>Procedencia:</b> {titular.procedencia}', style_label),
-        Paragraph(f'<b>Teléfono:</b> {titular.telefono}', style_label),
-        Paragraph(f'<b>Profesión:</b> {titular.tipo_cliente_profesion}', style_label),
     ]]
     tabla_fila4 = Table(fila4, colWidths=[ancho_util * 0.33] * 3)
     tabla_fila4.setStyle(_estilo_celdas())
-    elements.append(Spacer(1, 1.5 * mm))
     elements.append(tabla_fila4)
     elements.append(Spacer(1, 1.5 * mm))
 
+    # --- FILA 5: Teléfono, Profesión ---
+    fila5 = [[
+        Paragraph(f'<b>Teléfono:</b> {titular.telefono}', style_label),
+        Paragraph(f'<b>Profesión:</b> {titular.tipo_cliente_profesion}', style_label),
+    ]]
+    tabla_fila5 = Table(fila5, colWidths=[ancho_util * 0.40, ancho_util * 0.60])
+    tabla_fila5.setStyle(_estilo_celdas())
+    elements.append(tabla_fila5)
+    elements.append(Spacer(1, 2 * mm))
+
+    # --- COSTOS ---
     fila_costos1 = [[
         Paragraph(f'<b>Precio/Noche:</b> ${precio_noche}', style_label),
         Paragraph(f'<b>Noches:</b> {noches}', style_label),
@@ -161,7 +174,6 @@ def generar_hoja_huesped(reserva):
     ]]
     tabla_costos1 = Table(fila_costos1, colWidths=[ancho_util * 0.33] * 3)
     tabla_costos1.setStyle(_estilo_celdas(background='#fff9e6'))
-    elements.append(Spacer(1, 1.5 * mm))
     elements.append(tabla_costos1)
     elements.append(Spacer(1, 1.5 * mm))
 
@@ -172,15 +184,15 @@ def generar_hoja_huesped(reserva):
     ]]
     tabla_costos2 = Table(fila_costos2, colWidths=[ancho_util * 0.33] * 3)
     tabla_costos2.setStyle(_estilo_celdas(background='#fff9e6'))
-    elements.append(Spacer(1, 1.5 * mm))
     elements.append(tabla_costos2)
     elements.append(Spacer(1, 2 * mm))
 
+    # --- ACOMPAÑANTES ---
     acompanantes = reserva.huespedes_secundarios.filter(rol='Acompañante').select_related('id_huesped')
     if acompanantes.exists():
         elements.append(Paragraph('<b>ACOMPAÑANTES</b>', style_label))
         datos_acomp = [[
-            Paragraph('<b>Nombre</b>', style_header),
+            Paragraph('<b>Nombre y Apellido</b>', style_header),
             Paragraph('<b>C.I.</b>', style_header),
             Paragraph('<b>Edad</b>', style_header),
         ]]
@@ -193,7 +205,6 @@ def generar_hoja_huesped(reserva):
             ])
         tabla_acomp = Table(datos_acomp, colWidths=[ancho_util * 0.50, ancho_util * 0.30, ancho_util * 0.20])
         tabla_acomp.setStyle(_estilo_celdas(header=True))
-        elements.append(Spacer(1, 1.5 * mm))
         elements.append(tabla_acomp)
         elements.append(Spacer(1, 2 * mm))
 
@@ -202,19 +213,46 @@ def generar_hoja_huesped(reserva):
         elements.append(Paragraph(f'<b>Observaciones:</b> {obs}', style_small))
         elements.append(Spacer(1, 2 * mm))
 
-    elements.append(Spacer(1, 6 * mm))
+    elements.append(Spacer(1, 8 * mm))
+
+    firma_ancho = ancho_util * 0.35
+    margen_entre_firmas = ancho_util * 0.10
+    margen_lateral = ancho_util * 0.10
+
     datos_firmas = [
         [Paragraph('________________________', style_small), Paragraph('________________________', style_small)],
         [Paragraph('<b>Firma del Huésped</b>', style_small), Paragraph('<b>Firma del Recepcionista</b>', style_small)],
     ]
-    tabla_firmas = Table(datos_firmas, colWidths=[ancho_util * 0.50] * 2)
+
+    tabla_firmas = Table(
+        datos_firmas,
+        colWidths=[firma_ancho, firma_ancho]
+    )
     tabla_firmas.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
     ]))
-    elements.append(tabla_firmas)
 
+    tabla_firmas_centrada = Table(
+        [[tabla_firmas]],
+        colWidths=[ancho_util]
+    )
+    tabla_firmas_centrada.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+    ]))
+
+    elements.append(tabla_firmas_centrada)
+
+    # --- REVERSO ---
     elements.append(PageBreak())
 
     elements.append(Paragraph('<b>REGISTRO DE CONSUMOS Y PAGOS</b>', style_title))
@@ -268,14 +306,7 @@ def generar_hoja_huesped(reserva):
         colWidths=[ancho_util * 0.08, ancho_util * 0.18, ancho_util * 0.32, ancho_util * 0.18, ancho_util * 0.14, ancho_util * 0.10]
     )
     tabla_reverso.setStyle(_estilo_celdas(header=True))
-    elements.append(Spacer(1, 1.5 * mm))
     elements.append(tabla_reverso)
-
-    elements.append(Spacer(1, 3 * mm))
-    elements.append(Paragraph(
-        f'Generado el {date.today().strftime("%d/%m/%Y")} — Sistema SalmaSuitePMS',
-        style_footer
-    ))
 
     doc.build(elements)
     buffer.seek(0)
@@ -421,12 +452,6 @@ def generar_registro_reservaciones_semanal(fecha_referencia=None):
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#fafaf5')]),
     ]))
     elements.append(tabla)
-
-    elements.append(Spacer(1, 5 * mm))
-    elements.append(Paragraph(
-        f'Generado el {date.today().strftime("%d/%m/%Y")} — Sistema SalmaSuitePMS',
-        style_leyenda
-    ))
 
     doc.build(elements)
     buffer.seek(0)
@@ -574,12 +599,6 @@ def generar_cierre_caja_pdf(fecha):
         ('TOPPADDING', (0, 0), (-1, -1), 10),
     ]))
     elements.append(tabla_firmas)
-
-    elements.append(Spacer(1, 5 * mm))
-    elements.append(Paragraph(
-        f'Generado el {date.today().strftime("%d/%m/%Y")} — Sistema SalmaSuitePMS',
-        style_footer
-    ))
 
     doc.build(elements)
     buffer.seek(0)

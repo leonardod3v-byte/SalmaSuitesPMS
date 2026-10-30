@@ -2,12 +2,14 @@ from rest_framework import serializers
 from .models import Reservacion, ReservacionHuespedes, Consumo, Pago
 
 class ReservacionSerializer(serializers.ModelSerializer):
-    # Campos anidados para el frontend
     habitacion_numero = serializers.CharField(source='id_habitacion.numero', read_only=True)
     habitacion_tipo = serializers.CharField(source='id_habitacion.categoria_tipo', read_only=True)
     huesped_nombre = serializers.SerializerMethodField(read_only=True)
     huesped_documento = serializers.SerializerMethodField(read_only=True)
     tipo_cliente = serializers.CharField(source='id_huesped_titular.tipo_cliente_profesion', read_only=True)
+
+    empresa_nombre = serializers.CharField(source='id_empresa.nombre', read_only=True, default=None)
+    empresa_rif = serializers.CharField(source='id_empresa.rif', read_only=True, default=None)
 
     class Meta:
         model = Reservacion

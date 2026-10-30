@@ -7,13 +7,9 @@
     import Loading from '$components/ui/Loading.svelte';
     import Tabs from '$components/ui/Tabs.svelte';
     import DatePicker from '$components/ui/DatePicker.svelte';
+    import Icon from '$components/ui/Icons.svelte';
     import BookingCalendar from '$components/reservaciones/BookingCalendar.svelte';
-    import ReservaDetail from '$components/reservaciones/ReservaDetail.svelte';
     import ReservaForm from '$components/reservaciones/ReservaForm.svelte';
-    import CheckInForm from '$components/reservaciones/CheckInForm.svelte';
-    import CheckOutForm from '$components/reservaciones/CheckOutForm.svelte';
-    import ConsumoSelector from '$components/reservaciones/ConsumoSelector.svelte';
-    import PagoRegistro from '$components/reservaciones/PagoRegistro.svelte';
     import { fetchReservaciones } from '$lib/services/reservaciones';
     import { fetchHabitaciones } from '$lib/services/habitaciones';
     import type { Reservacion } from '$lib/types/reservacion';
@@ -26,14 +22,11 @@
     let vista = $state<'calendario' | 'lista'>('calendario');
     let semanaInicio = $state(getLunes());
 
-    let mostrarForm = $state(false);
-    let mostrarCheckin = $state<Reservacion | null>(null);
-    let mostrarCheckout = $state<Reservacion | null>(null);
-    let mostrarConsumo = $state<number | null>(null);
-    let mostrarPago = $state<number | null>(null);
-
     let fechaDesde = $state('');
     let fechaHasta = $state('');
+    let filtroEstado = $state<string>('todas');
+
+    let mostrarForm = $state(false);
 
     function getLunes(): Date {
         const hoy = new Date();
@@ -45,21 +38,17 @@
         return lunes;
     }
 
-    onMount(async () => {
-        await cargarReservaciones();
-    });
-
     async function cargarReservaciones() {
         cargando = true;
         try {
-            let params = '';
-            if (fechaDesde) params += `&desde=${fechaDesde}`;
-            if (fechaHasta) params += `&hasta=${fechaHasta}`;
-            const query = params ? `?${params.substring(1)}` : '';
-            console.log('URL:', `/reservaciones/${query}`);
-            
+            let params = [];
+            if (fechaDesde) params.push(`desde=${fechaDesde}`);
+            if (fechaHasta) params.push(`hasta=${fechaHasta}`);
+
+            const query = params.length > 0 ? `?${params.join('&')}` : '';
+
             const [r, h] = await Promise.all([
-                fetchReservaciones(params ? `?${params.substring(1)}` : ''),
+                fetchReservaciones(query),
                 fetchHabitaciones(),
             ]);
             reservaciones = r;
@@ -71,10 +60,23 @@
         }
     }
 
+    onMount(() => {
+        cargarReservaciones();
+    });
+
+    function filtrarPorFecha() {
+        cargarReservaciones();
+    }
+
+    function limpiarFiltros() {
+        fechaDesde = '';
+        fechaHasta = '';
+        filtroEstado = 'todas';
+        cargarReservaciones();
+    }
+
     async function refrescar() {
-        try {
-            reservaciones = await fetchReservaciones();
-        } catch { }
+        await cargarReservaciones();
     }
 
     function onCeldaClick(habNum: string, fecha: string) {
@@ -84,10 +86,37 @@
             const clic = new Date(fecha + 'T12:00:00');
             return r.habitacion_numero === habNum && clic >= entrada && clic < salida;
         });
-        
+
         if (reserva) {
             goto(`/reservaciones/${reserva.id}`);
         }
+    }
+
+    function descargarRegistroSemanal() {
+        const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api';
+        const fecha = semanaInicio.toISOString().split('T')[0];
+        window.open(`${apiUrl}/reportes/registro-reservaciones/?fecha=${fecha}`, '_blank');
+    }
+
+    // Filtrado local por estado
+    let filtradas = $derived(
+        filtroEstado === 'todas'
+            ? reservaciones
+            : reservaciones.filter(r => r.estado === filtroEstado)
+    );
+
+    // Colores para el badge del estado
+    const estadoClases: Record<string, string> = {
+        'Confirmada': 'bg-hotel-info/10 text-hotel-info-light border-hotel-info/30',
+        'EnCurso': 'bg-hotel-gold/10 text-hotel-gold-light border-hotel-gold/30',
+        'Finalizada': 'bg-hotel-success/10 text-hotel-success-light border-hotel-success/30',
+        'Cancelada': 'bg-hotel-error/10 text-hotel-error-light border-hotel-error/30',
+        'NoShow': 'bg-hotel-text-tertiary/10 text-hotel-text-tertiary border-hotel-text-tertiary/30',
+    };
+
+    function formatFecha(fecha: string) {
+        const d = new Date(fecha + 'T12:00:00');
+        return d.toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' });
     }
 </script>
 
@@ -95,21 +124,22 @@
     <title>Reservaciones | SalmaSuitesPMS</title>
 </svelte:head>
 
-<PageHeader title="Reservaciones" subtitle="{reservaciones.length} reservas">
-    <a href="{import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'}/reportes/registro-reservaciones/" target="_blank" class="no-underline">
-        <Button variant="secondary" size="md">
+<PageHeader title="Reservaciones" subtitle="{reservaciones.length} reservas en el sistema">
+    <div class="flex items-center gap-2">
+        <Button variant="secondary" size="md" onclick={descargarRegistroSemanal}>
             <span class="flex items-center gap-1.5">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                Registro de Reservaciones
+                <Icon name="file" class="w-4 h-4" />
+                Registro Semanal
             </span>
         </Button>
-    </a>
-    <Button variant="gold" size="md" onclick={() => mostrarForm = true}>
-        <span class="flex items-center gap-1.5">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-            Nueva Reserva
-        </span>
-    </Button>
+
+        <Button variant="gold" size="md" onclick={() => mostrarForm = true}>
+            <span class="flex items-center gap-1.5">
+                <Icon name="plus" class="w-4 h-4" />
+                Nueva reservación
+            </span>
+        </Button>
+    </div>
 </PageHeader>
 
 {#if cargando}
@@ -117,29 +147,36 @@
 {:else if error}
     <div class="text-center p-8 bg-hotel-error/5 border border-hotel-error/20 rounded-2xl">
         <p class="text-hotel-error-light font-bold uppercase tracking-widest text-xs mb-4">{error}</p>
-        <Button variant="gold" size="sm" onclick={() => window.location.reload()}>Reintentar</Button>
+        <Button variant="gold" size="sm" onclick={cargarReservaciones}>Reintentar</Button>
     </div>
 {:else}
     <div class="space-y-6">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <Tabs
-                tabs={[{ key: 'calendario', label: 'Calendario' }, { key: 'lista', label: 'Lista' }]}
-                active={vista}
-                onchange={(k: string) => vista = k as 'calendario' | 'lista'}
-            />
-            
-            <div class="flex items-center gap-2">
-                <DatePicker bind:value={fechaDesde} />
-                <span class="text-hotel-text-tertiary text-xs">—</span>
-                <DatePicker bind:value={fechaHasta} />
-                <Button variant="gold" size="md" onclick={cargarReservaciones}>
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+
+        <!-- Barra de Filtros Unificada -->
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 p-4 rounded-2xl bg-hotel-surface/40 border border-hotel-border">
+            <!-- Inputs de fecha alineados al fondo -->
+            <div class="flex flex-wrap items-end gap-3">
+                <div class="w-full sm:w-auto">
+                    <DatePicker label="Desde" bind:value={fechaDesde} />
+                </div>
+                <div class="w-full sm:w-auto">
+                    <DatePicker label="Hasta" bind:value={fechaHasta} />
+                </div>
+                <Button variant="gold" size="md" onclick={filtrarPorFecha}>
+                    <Icon name="search" class="w-4 h-4" />
                 </Button>
                 {#if fechaDesde || fechaHasta}
-                    <Button variant="ghost" size="md" onclick={() => { fechaDesde = ''; fechaHasta = ''; cargarReservaciones(); }}>
-                        ✕
-                    </Button>
+                    <Button variant="ghost" size="md" onclick={limpiarFiltros}>Limpiar</Button>
                 {/if}
+            </div>
+
+            <!-- Tabs de vista a la derecha -->
+            <div class="flex items-center gap-2">
+                <Tabs
+                    tabs={[{ key: 'calendario', label: 'Calendario' }, { key: 'lista', label: 'Lista' }]}
+                    active={vista}
+                    onchange={(k: string) => vista = k as 'calendario' | 'lista'}
+                />
             </div>
         </div>
 
@@ -153,7 +190,7 @@
                     habitacion_numero: r.habitacion_numero || '',
                     huesped_nombre: r.huesped_nombre || '',
                     huesped_documento: r.huesped_documento || '',
-                    tipo_cliente: 'Particular',
+                    tipo_cliente: r.tipo_cliente || 'Particular',
                 }))}
                 habitaciones={habitaciones.map(h => ({
                     numero: h.numero,
@@ -164,10 +201,120 @@
                 onCeldaClick={onCeldaClick}
             />
         {:else}
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {#each reservaciones as r}
-                    <ReservaDetail reservacion={r} />
-                {/each}
+            <!-- Vista de Lista -->
+            <div class="bg-hotel-surface rounded-2xl border border-hotel-border shadow-hotel-sm overflow-hidden">
+
+                <!-- Filtros rápidos por estado -->
+                <div class="p-4 border-b border-hotel-border/50 flex flex-wrap gap-2 bg-hotel-bg/20">
+                    <button
+                        onclick={() => filtroEstado = 'todas'}
+                        class="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border
+                        {filtroEstado === 'todas' ? 'bg-hotel-gold text-hotel-bg border-hotel-gold' : 'bg-transparent border-transparent text-hotel-text-tertiary hover:text-hotel-text-secondary'}"
+                    >
+                        Todas ({reservaciones.length})
+                    </button>
+                    {#each ['Confirmada', 'EnCurso', 'Finalizada', 'Cancelada', 'NoShow'] as estado}
+                        {@const count = reservaciones.filter(r => r.estado === estado).length}
+                        {#if count > 0}
+                            <button
+                                onclick={() => filtroEstado = estado}
+                                class="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border
+                                {filtroEstado === estado ? 'bg-hotel-surface text-hotel-text-primary border-hotel-border shadow-sm' : 'bg-transparent border-transparent text-hotel-text-tertiary hover:text-hotel-text-secondary'}"
+                            >
+                                {estado === 'EnCurso' ? 'En Curso' : estado} ({count})
+                            </button>
+                        {/if}
+                    {/each}
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-hotel-border text-[10px] uppercase tracking-widest text-hotel-text-tertiary text-left bg-hotel-bg/10">
+                                <th class="p-4 font-bold">Reserva</th>
+                                <th class="p-4 font-bold">Huésped</th>
+                                <th class="p-4 font-bold">Habitación</th>
+                                <th class="p-4 font-bold hidden md:table-cell">Estadía</th>
+                                <th class="p-4 font-bold text-right">Total</th>
+                                <th class="p-4 font-bold text-center">Estado</th>
+                                <th class="p-4 font-bold text-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {#each filtradas as r (r.id)}
+                                <tr class="border-b border-hotel-border/30 hover:bg-hotel-surface-hover transition-colors group">
+
+                                    <!-- ID y Factura -->
+                                    <td class="p-4">
+                                        <p class="font-display font-bold italic text-base text-hotel-text-primary group-hover:text-hotel-gold transition-colors">
+                                            #{r.id}
+                                        </p>
+                                        {#if r.requiere_factura}
+                                            <span class="inline-block mt-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase bg-hotel-vip/20 text-hotel-vip-light border border-hotel-vip/30">
+                                                Factura
+                                            </span>
+                                        {/if}
+                                    </td>
+
+                                    <!-- Huésped -->
+                                    <td class="p-4">
+                                        <p class="font-bold text-hotel-text-primary text-sm">{r.huesped_nombre}</p>
+                                        <p class="text-[10px] text-hotel-text-tertiary">{r.huesped_documento}</p>
+                                    </td>
+
+                                    <!-- Habitación (rediseñada) -->
+                                    <td class="p-4">
+                                        <span class="text-hotel-text-primary font-bold text-sm">
+                                            Hab. <span class="text-hotel-gold">{r.habitacion_numero}</span>
+                                        </span>
+                                    </td>
+
+                                    <!-- Fechas -->
+                                    <td class="p-4 hidden md:table-cell">
+                                        <p class="text-xs text-hotel-text-secondary">{formatFecha(r.fecha_entrada)}</p>
+                                        <p class="text-[10px] text-hotel-text-tertiary my-0.5">al {formatFecha(r.fecha_salida)}</p>
+                                        <p class="text-[9px] font-bold text-hotel-gold uppercase tracking-wider">{r.numero_noches} noches</p>
+                                    </td>
+
+                                    <!-- Total -->
+                                    <td class="p-4 text-right">
+                                        <p class="font-bold text-hotel-text-primary text-sm">${r.monto_total_final}</p>
+                                        {#if parseFloat(r.saldo_pendiente) > 0}
+                                            <p class="text-[10px] font-bold text-hotel-error-light mt-1">Saldo: ${r.saldo_pendiente}</p>
+                                        {:else}
+                                            <p class="text-[10px] font-bold text-hotel-success-light mt-1">Saldado</p>
+                                        {/if}
+                                    </td>
+
+                                    <!-- Estado -->
+                                    <td class="p-4 text-center">
+                                        <span class="inline-block px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border {estadoClases[r.estado] || ''}">
+                                            {r.estado === 'EnCurso' ? 'En Curso' : r.estado}
+                                        </span>
+                                    </td>
+
+                                    <!-- Acciones -->
+                                    <td class="p-4 text-right">
+                                        <Button variant="ghost" size="sm" onclick={() => goto(`/reservaciones/${r.id}`)}>
+                                            Ver Detalle →
+                                        </Button>
+                                    </td>
+                                </tr>
+                            {:else}
+                                <tr>
+                                    <td colspan="7" class="p-10 text-center">
+                                        <p class="text-hotel-text-tertiary text-xs uppercase tracking-widest mb-2">
+                                            No hay reservas {filtroEstado !== 'todas' ? `en estado "${filtroEstado}"` : 'registradas'}
+                                        </p>
+                                        {#if filtroEstado !== 'todas'}
+                                            <Button variant="ghost" size="sm" onclick={() => filtroEstado = 'todas'}>Ver todas</Button>
+                                        {/if}
+                                    </td>
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         {/if}
     </div>
@@ -176,29 +323,5 @@
 {#if mostrarForm}
     <Modal title="Nueva Reservación" onclose={() => { mostrarForm = false; refrescar(); }}>
         <ReservaForm onclose={() => { mostrarForm = false; refrescar(); }} />
-    </Modal>
-{/if}
-
-{#if mostrarCheckin}
-    <Modal title="Check‑in" onclose={() => { mostrarCheckin = null; refrescar(); }}>
-        <CheckInForm reservacion={mostrarCheckin} onclose={() => { mostrarCheckin = null; refrescar(); }} />
-    </Modal>
-{/if}
-
-{#if mostrarCheckout}
-    <Modal title="Check‑out" onclose={() => { mostrarCheckout = null; refrescar(); }}>
-        <CheckOutForm reservacion={mostrarCheckout} onclose={() => { mostrarCheckout = null; refrescar(); }} />
-    </Modal>
-{/if}
-
-{#if mostrarConsumo}
-    <Modal title="Registrar Consumo" onclose={() => { mostrarConsumo = null; refrescar(); }}>
-        <ConsumoSelector reservaId={mostrarConsumo} onclose={() => { mostrarConsumo = null; refrescar(); }} />
-    </Modal>
-{/if}
-
-{#if mostrarPago}
-    <Modal title="Registrar Pago" onclose={() => { mostrarPago = null; refrescar(); }}>
-        <PagoRegistro reservaId={mostrarPago} onclose={() => { mostrarPago = null; refrescar(); }} />
     </Modal>
 {/if}

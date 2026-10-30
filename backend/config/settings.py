@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'apps.reportes',
     'apps.bitacora',
     'apps.configuracion',
+    'apps.empresas',
 ]
 
 MIDDLEWARE = [

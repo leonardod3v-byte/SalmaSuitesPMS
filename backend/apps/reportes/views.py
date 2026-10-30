@@ -22,7 +22,6 @@ def detalle_diario(request):
     except ValueError:
         return Response({'error': 'Formato de fecha inválido.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Límite de días para recepción
     if request.user.role == 'recepcionista':
         hoy = date.today()
         limite = hoy - timedelta(days=7)
@@ -50,11 +49,10 @@ def ingresos_periodo(request):
     if inicio > fin:
         return Response({'error': 'La fecha de inicio debe ser anterior o igual a la de fin.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Limitar a 366 días máximo para no sobrecargar
     if (fin - inicio).days > 366:
         return Response({'error': 'El rango máximo es de 366 días.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    metodo = request.query_params.get('metodo')  # opcional: Efectivo, Tarjeta, PagoMovil
+    metodo = request.query_params.get('metodo')
     data = services.obtener_ingresos_por_periodo(inicio, fin, metodo=metodo)
     serializer = IngresoPeriodoSerializer(data, many=True)
     return Response(serializer.data)
@@ -65,7 +63,12 @@ def ingresos_periodo(request):
 def hoja_huesped_pdf(request, reserva_id):
     reserva = get_object_or_404(Reservacion, pk=reserva_id)
     buffer = generar_hoja_huesped(reserva)
-    return FileResponse(buffer, as_attachment=True, filename=f'hoja_huesped_{reserva_id}.pdf')
+
+    # Nombre descriptivo: hoja_registro_Ana_Martinez_2026-10-30.pdf
+    nombre_huesped = f"{reserva.id_huesped_titular.nombres}_{reserva.id_huesped_titular.apellidos}".replace(' ', '_')
+    filename = f'hoja_registro_{nombre_huesped}_{date.today().isoformat()}.pdf'
+
+    return FileResponse(buffer, as_attachment=False, filename=filename, content_type='application/pdf')
 
 
 @api_view(['GET'])
@@ -81,7 +84,9 @@ def registro_reservaciones_pdf(request):
         fecha = date.today()
 
     buffer = generar_registro_reservaciones_semanal(fecha)
-    return FileResponse(buffer, as_attachment=True, filename=f'registro_reservaciones_{fecha.isoformat()}.pdf')
+    filename = f'registro_reservaciones_semana_{fecha.isoformat()}.pdf'
+
+    return FileResponse(buffer, as_attachment=False, filename=filename, content_type='application/pdf')
 
 
 @api_view(['GET'])
@@ -96,4 +101,6 @@ def cierre_caja_pdf(request):
         return Response({'error': 'Formato de fecha inválido.'}, status=status.HTTP_400_BAD_REQUEST)
 
     buffer = generar_cierre_caja_pdf(fecha)
-    return FileResponse(buffer, as_attachment=True, filename=f'cierre_caja_{fecha.isoformat()}.pdf')
+    filename = f'cierre_caja_{fecha.isoformat()}.pdf'
+
+    return FileResponse(buffer, as_attachment=False, filename=filename, content_type='application/pdf')

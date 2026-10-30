@@ -14,7 +14,7 @@ from . import services
 @permission_classes([IsAuthenticated])
 def lista_reservaciones(request):
     if request.method == 'GET':
-        qs = Reservacion.objects.select_related('id_huesped_titular', 'id_habitacion').all()
+        qs = Reservacion.objects.select_related('id_huesped_titular', 'id_habitacion', 'id_empresa').all()
 
         estado = request.query_params.get('estado')
         if estado:
@@ -23,33 +23,31 @@ def lista_reservaciones(request):
         desde = request.query_params.get('desde')
         hasta = request.query_params.get('hasta')
 
-        if desde and hasta:
-            # Reservas que se solapan con el rango [desde, hasta]
-            qs = qs.filter(
-                fecha_entrada__lt=hasta,
-                fecha_salida__gt=desde
-            )
-        elif desde:
-            qs = qs.filter(fecha_salida__gt=desde)
-        elif hasta:
-            qs = qs.filter(fecha_entrada__lt=hasta)
+
+        if desde:
+            qs = qs.filter(fecha_salida__gte=desde)
+        if hasta:
+            qs = qs.filter(fecha_entrada__lte=hasta)
 
         serializer = ReservacionSerializer(qs, many=True)
         return Response(serializer.data)
 
     elif request.method == 'POST':
         data = request.data.copy()
-        # Convertir fechas de string a date
-        from datetime import datetime
-        data['fecha_entrada'] = datetime.strptime(data['fecha_entrada'], '%Y-%m-%d').date()
-        data['fecha_salida'] = datetime.strptime(data['fecha_salida'], '%Y-%m-%d').date()
+        try:
+            data['fecha_entrada'] = datetime.strptime(data['fecha_entrada'], '%Y-%m-%d').date()
+            data['fecha_salida'] = datetime.strptime(data['fecha_salida'], '%Y-%m-%d').date()
+        except ValueError:
+            return Response({'error': 'Formato de fecha inválido. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
 
         acompanantes = data.pop('acompanantes', [])
         monto_abonado = data.pop('monto_abonado', '0.00')
+
         try:
             reserva = services.crear_reservacion(
                 id_huesped_titular=data['id_huesped_titular'],
                 id_habitacion=data['id_habitacion'],
+                id_empresa=data.get('id_empresa'),
                 fecha_entrada=data['fecha_entrada'],
                 fecha_salida=data['fecha_salida'],
                 modalidad_pago=data.get('modalidad_pago', 'Contado'),
@@ -75,8 +73,6 @@ def detalle_reservacion(request, pk):
         serializer = ReservacionSerializer(reserva)
         return Response(serializer.data)
     elif request.method in ('PUT', 'PATCH'):
-        # Solo se pueden editar ciertos campos (fechas, factura, etc.) pero el estado se maneja con endpoints específicos
-        # Por simplicidad, permitimos actualización parcial de campos no calculados.
         allowed_fields = ['requiere_factura', 'acta', 'motivo_cancelacion']
         data = request.data
         for field in allowed_fields:
