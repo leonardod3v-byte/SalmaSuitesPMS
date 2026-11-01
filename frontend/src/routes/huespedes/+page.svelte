@@ -8,7 +8,8 @@
     import Icon from '$components/ui/Icons.svelte';
     import GuestTable from '$components/huespedes/GuestTable.svelte';
     import GuestForm from '$components/huespedes/GuestForm.svelte';
-    import { fetchHuespedes, getExportUrl } from '$lib/services/huespedes';
+    import { fetchHuespedes, exportarHuespedes } from '$lib/services/huespedes';
+    import { toast } from '$lib/stores/toast';
     import type { Huesped } from '$lib/types/huesped';
 
     let huespedes = $state<Huesped[]>([]);
@@ -17,6 +18,7 @@
     let mostrarForm = $state(false);
     let busqueda = $state('');
     let soloVip = $state(false);
+    let exportando = $state(false);
 
     let filtrados = $derived(
         huespedes.filter(h => {
@@ -52,9 +54,16 @@
         busqueda = '';
     }
 
-    function exportarXLS() {
-        const url = getExportUrl();
-        window.open(url, '_blank');
+    async function exportarXLS() {
+        exportando = true;
+        try {
+            await exportarHuespedes();
+            toast.success('Exportación descargada.');
+        } catch (e: any) {
+            toast.error(e.message || 'Error al exportar los huéspedes.');
+        } finally {
+            exportando = false;
+        }
     }
 </script>
 
@@ -64,7 +73,7 @@
 
 <PageHeader title="Huéspedes" subtitle="{filtrados.length} Registros">
     <div class="flex items-center gap-3">
-        <Button variant="secondary" size="md" onclick={exportarXLS}>
+        <Button variant="secondary" size="md" onclick={exportarXLS} loading={exportando}>
             <span class="flex items-center gap-1.5">
                 <Icon name="export" class="w-4 h-4" />
                 Exportar XLS
