@@ -23,7 +23,6 @@ def lista_reservaciones(request):
         desde = request.query_params.get('desde')
         hasta = request.query_params.get('hasta')
 
-
         if desde:
             qs = qs.filter(fecha_salida__gte=desde)
         if hasta:
@@ -137,7 +136,6 @@ def resumen_checkout(request, pk):
     return Response(resumen)
 
 
-# Consumos de una reservación
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def consumos_reservacion(request, pk):
@@ -170,7 +168,6 @@ def consumos_reservacion(request, pk):
             return Response({'error': f'Falta campo requerido: {e}'}, status=status.HTTP_400_BAD_REQUEST)
 
 
-# Pagos de una reservación
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def pagos_reservacion(request, pk):

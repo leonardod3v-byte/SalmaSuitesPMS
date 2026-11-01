@@ -1,10 +1,10 @@
 from io import BytesIO
-from datetime import date
+from datetime import date, timedelta
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import mm, cm
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT, TA_JUSTIFY
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, PageBreak
 )
@@ -39,293 +39,243 @@ def _get_logo_path():
     return None
 
 
-def _estilo_celdas(background='#ffffff', header=False):
-    estilo = [
-        ('GRID', (0, 0), (-1, -1), 0.3, colors.HexColor('#cccccc')),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 6),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 5),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(background)),
+# --- BLOQUE DE ENCABEZADO REUTILIZABLE ---
+def _construir_encabezado(titulo_es, titulo_en, subtitulo_extra="", ancho_util=None):
+    config = _get_config()
+    nombre_hotel = config.get('nombre_hotel', 'Hotel Salma Suite VIP')
+    rif = config.get('rif', 'J-400896975')
+
+    styles = getSampleStyleSheet()
+    style_title_main = ParagraphStyle('TitleMain', parent=styles['Title'], fontSize=11, leading=13, alignment=TA_RIGHT, fontName='Helvetica-Bold')
+    style_subtitle_main = ParagraphStyle('SubTitleMain', parent=styles['Normal'], fontSize=8, leading=10, alignment=TA_RIGHT)
+    style_small_left = ParagraphStyle('SmallLeft', parent=styles['Normal'], fontSize=7, leading=9, alignment=TA_LEFT)
+
+    logo_path = _get_logo_path()
+    logo_img = Image(logo_path, width=30 * mm, height=15 * mm) if logo_path else Paragraph("", style_small_left)
+
+    bloque_izq = [
+        logo_img,
+        Spacer(1, 1 * mm),
+        Paragraph(f"<b>RIF:</b> {rif}", style_small_left),
+        Paragraph(f"<b>Razón Social:</b> {nombre_hotel} C.A.", style_small_left),
     ]
-    if header:
-        estilo.append(('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2d1b14')))
-    return TableStyle(estilo)
+
+    bloque_der = [
+        Spacer(1, 5 * mm),
+        Paragraph(titulo_es, style_title_main),
+        Paragraph(f"<i>{titulo_en}</i>", style_subtitle_main),
+    ]
+    if subtitulo_extra:
+        bloque_der.append(Paragraph(subtitulo_extra, style_subtitle_main))
+
+    if ancho_util:
+        col_widths = [ancho_util * 0.45, ancho_util * 0.55]
+    else:
+        col_widths = ['45%', '55%']
+
+    header_table = Table([[bloque_izq, bloque_der]], colWidths=col_widths)
+    header_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+        ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    return header_table, style_small_left
 
 
+# --- HOJA DE REGISTRO DE HUÉSPED ---
 def generar_hoja_huesped(reserva):
     buffer = BytesIO()
-    page_width, page_height = 216 * mm, 140 * mm
+    page_width, page_height = 279 * mm, 216 * mm
 
     doc = SimpleDocTemplate(
         buffer,
         pagesize=(page_width, page_height),
-        topMargin=10 * mm,
-        bottomMargin=10 * mm,
-        leftMargin=12 * mm,
-        rightMargin=12 * mm,
+        topMargin=15 * mm,
+        bottomMargin=15 * mm,
+        leftMargin=15 * mm,
+        rightMargin=15 * mm,
     )
 
-    ancho_util = page_width - 24 * mm
-
+    ancho_util = page_width - 30 * mm
     elements = []
     styles = getSampleStyleSheet()
 
-    style_title = ParagraphStyle('Title2', parent=styles['Title'], fontSize=11, leading=13, alignment=TA_CENTER, spaceAfter=2)
-    style_subtitle = ParagraphStyle('Sub2', parent=styles['Normal'], fontSize=7, leading=9, alignment=TA_CENTER, textColor=colors.grey)
-    style_label = ParagraphStyle('Label', parent=styles['Normal'], fontSize=6.5, leading=8, fontName='Helvetica-Bold')
-    style_small = ParagraphStyle('Small', parent=styles['Normal'], fontSize=6, leading=7)
-    style_header = ParagraphStyle('HeaderT', parent=styles['Normal'], fontSize=6, leading=8, fontName='Helvetica-Bold', textColor=colors.white)
-    style_footer = ParagraphStyle('Footer', parent=styles['Normal'], fontSize=5, leading=6, textColor=colors.HexColor('#999999'), alignment=TA_CENTER)
+    style_normal = ParagraphStyle('NormalPDF', parent=styles['Normal'], fontSize=7, leading=9)
+    style_small = ParagraphStyle('Small', parent=styles['Normal'], fontSize=6, leading=8)
+    style_small_bold = ParagraphStyle('SmallBold', parent=styles['Normal'], fontSize=6, leading=8, fontName='Helvetica-Bold')
+    style_legal = ParagraphStyle('Legal', parent=styles['Normal'], fontSize=5, leading=6, alignment=TA_JUSTIFY, textColor=colors.HexColor('#555555'))
 
-    config = _get_config()
-    nombre_hotel = config.get('nombre_hotel', 'Hotel Salma Suite VIP')
-    rif = config.get('rif', '')
-    direccion = config.get('direccion', '')
-    telefono = config.get('telefono', '')
-
-    hoy = date.today()
     entrada = reserva.fecha_entrada
     salida = reserva.fecha_salida
-    noches = (salida - entrada).days
     precio_noche = reserva.id_habitacion.precio_por_noche
-    total_habitacion = noches * precio_noche
-    total_consumos = reserva.monto_total_consumos
-    total_general = total_habitacion + total_consumos
     titular = reserva.id_huesped_titular
-
-    # Logo
-    logo_path = _get_logo_path()
-    if logo_path:
-        logo = Image(logo_path, width=25 * mm, height=12 * mm)
-        logo.hAlign = 'CENTER'
-        elements.append(logo)
-        elements.append(Spacer(1, 1 * mm))
-
-    elements.append(Paragraph(f'<b>{nombre_hotel}</b>', style_title))
-    if rif:
-        elements.append(Paragraph(f'RIF: {rif}', style_subtitle))
-    elements.append(Paragraph(f'{direccion}  •  {telefono}', style_subtitle))
-    elements.append(Spacer(1, 2 * mm))
-
-    elements.append(Paragraph('<b>HOJA DE REGISTRO DE HUÉSPED</b>', style_title))
-    elements.append(Spacer(1, 2 * mm))
-
-    # --- FILA 1: Fecha y Habitación ---
-    fila1 = [[
-        Paragraph(f'<b>Día:</b> {hoy.day}', style_label),
-        Paragraph(f'<b>Mes:</b> {hoy.month}', style_label),
-        Paragraph(f'<b>Año:</b> {hoy.year}', style_label),
-        Paragraph(f'<b>Nº Hab:</b> {reserva.id_habitacion.numero}', style_label),
-    ]]
-    tabla_fila1 = Table(fila1, colWidths=[ancho_util * 0.25] * 4)
-    tabla_fila1.setStyle(_estilo_celdas(background='#f5f5f5'))
-    elements.append(tabla_fila1)
-    elements.append(Spacer(1, 1.5 * mm))
-
-    # --- FILA 2: Nombre y Apellido ---
-    fila2 = [[
-        Paragraph(f'<b>Nombre:</b> {titular.nombres}', style_label),
-        Paragraph(f'<b>Apellido:</b> {titular.apellidos}', style_label),
-    ]]
-    tabla_fila2 = Table(fila2, colWidths=[ancho_util * 0.50] * 2)
-    tabla_fila2.setStyle(_estilo_celdas())
-    elements.append(tabla_fila2)
-    elements.append(Spacer(1, 1.5 * mm))
-
-    # --- FILA 3: Cédula, Edad, Nacionalidad ---
-    fila3 = [[
-        Paragraph(f'<b>C.I.:</b> {titular.tipo_documento}-{titular.numero_documento}', style_label),
-        Paragraph(f'<b>Edad:</b> {titular.edad}', style_label),
-        Paragraph(f'<b>Nacionalidad:</b> {titular.nacionalidad}', style_label),
-    ]]
-    tabla_fila3 = Table(fila3, colWidths=[ancho_util * 0.40, ancho_util * 0.20, ancho_util * 0.40])
-    tabla_fila3.setStyle(_estilo_celdas())
-    elements.append(tabla_fila3)
-    elements.append(Spacer(1, 1.5 * mm))
-
-    # --- FILA 4: Estado Civil, F. Nacimiento, Procedencia ---
-    fila4 = [[
-        Paragraph(f'<b>Estado Civil:</b> {titular.estado_civil}', style_label),
-        Paragraph(f'<b>F. Nac.:</b> {titular.fecha_nacimiento.strftime("%d/%m/%Y")}', style_label),
-        Paragraph(f'<b>Procedencia:</b> {titular.procedencia}', style_label),
-    ]]
-    tabla_fila4 = Table(fila4, colWidths=[ancho_util * 0.33] * 3)
-    tabla_fila4.setStyle(_estilo_celdas())
-    elements.append(tabla_fila4)
-    elements.append(Spacer(1, 1.5 * mm))
-
-    # --- FILA 5: Teléfono, Profesión ---
-    fila5 = [[
-        Paragraph(f'<b>Teléfono:</b> {titular.telefono}', style_label),
-        Paragraph(f'<b>Profesión:</b> {titular.tipo_cliente_profesion}', style_label),
-    ]]
-    tabla_fila5 = Table(fila5, colWidths=[ancho_util * 0.40, ancho_util * 0.60])
-    tabla_fila5.setStyle(_estilo_celdas())
-    elements.append(tabla_fila5)
-    elements.append(Spacer(1, 2 * mm))
-
-    # --- COSTOS ---
-    fila_costos1 = [[
-        Paragraph(f'<b>Precio/Noche:</b> ${precio_noche}', style_label),
-        Paragraph(f'<b>Noches:</b> {noches}', style_label),
-        Paragraph(f'<b>Total Habitación:</b> ${total_habitacion}', style_label),
-    ]]
-    tabla_costos1 = Table(fila_costos1, colWidths=[ancho_util * 0.33] * 3)
-    tabla_costos1.setStyle(_estilo_celdas(background='#fff9e6'))
-    elements.append(tabla_costos1)
-    elements.append(Spacer(1, 1.5 * mm))
-
-    fila_costos2 = [[
-        Paragraph(f'<b>Total Consumos:</b> ${total_consumos}', style_label),
-        Paragraph(f'<b>Total General:</b> ${total_general}', style_label),
-        Paragraph(f'<b>Modalidad:</b> {reserva.modalidad_pago}', style_label),
-    ]]
-    tabla_costos2 = Table(fila_costos2, colWidths=[ancho_util * 0.33] * 3)
-    tabla_costos2.setStyle(_estilo_celdas(background='#fff9e6'))
-    elements.append(tabla_costos2)
-    elements.append(Spacer(1, 2 * mm))
-
-    # --- ACOMPAÑANTES ---
     acompanantes = reserva.huespedes_secundarios.filter(rol='Acompañante').select_related('id_huesped')
-    if acompanantes.exists():
-        elements.append(Paragraph('<b>ACOMPAÑANTES</b>', style_label))
-        datos_acomp = [[
-            Paragraph('<b>Nombre y Apellido</b>', style_header),
-            Paragraph('<b>C.I.</b>', style_header),
-            Paragraph('<b>Edad</b>', style_header),
-        ]]
-        for acomp in acompanantes:
-            h = acomp.id_huesped
-            datos_acomp.append([
-                Paragraph(f'{h.nombres} {h.apellidos}', style_small),
-                Paragraph(f'{h.tipo_documento}-{h.numero_documento}', style_small),
-                Paragraph(f'{h.edad}', style_small),
-            ])
-        tabla_acomp = Table(datos_acomp, colWidths=[ancho_util * 0.50, ancho_util * 0.30, ancho_util * 0.20])
-        tabla_acomp.setStyle(_estilo_celdas(header=True))
-        elements.append(tabla_acomp)
-        elements.append(Spacer(1, 2 * mm))
 
-    obs = reserva.acta or titular.observaciones or ''
-    if obs:
-        elements.append(Paragraph(f'<b>Observaciones:</b> {obs}', style_small))
-        elements.append(Spacer(1, 2 * mm))
+    header_table, _ = _construir_encabezado(
+        "TARJETA UNIFICADA DE REGISTRO DE HUÉSPEDES",
+        "GUEST REGISTERED CARD",
+        ancho_util=ancho_util
+    )
+    elements.append(header_table)
+    elements.append(Spacer(1, 3 * mm))
 
-    elements.append(Spacer(1, 8 * mm))
-
-    firma_ancho = ancho_util * 0.35
-    margen_entre_firmas = ancho_util * 0.10
-    margen_lateral = ancho_util * 0.10
-
-    datos_firmas = [
-        [Paragraph('________________________', style_small), Paragraph('________________________', style_small)],
-        [Paragraph('<b>Firma del Huésped</b>', style_small), Paragraph('<b>Firma del Recepcionista</b>', style_small)],
+    # TABLA DE ESTANCIA (Incluyendo Medio de Transporte)
+    estancia_data = [
+        [
+            Paragraph('<b>Habitación No.</b><br/><i>Room Nr.</i>', style_small),
+            Paragraph('<b>Tipo de Habitación</b><br/><i>Room Type</i>', style_small),
+            Paragraph('<b>Fecha de Entrada</b><br/><i>Arrival Date</i>', style_small),
+            Paragraph('<b>Fecha de Salida</b><br/><i>Departure Date</i>', style_small),
+            Paragraph('<b>N. Pers</b><br/><i>N. Pax</i>', style_small),
+            Paragraph('<b>Tarifa</b><br/><i>Room rate</i>', style_small),
+            Paragraph('<b>Forma de Pago</b><br/><i>Payment</i>', style_small),
+            Paragraph('<b>Medio de Transporte</b><br/><i>Transportation</i>', style_small),
+        ],
+        [
+            Paragraph(reserva.id_habitacion.numero, style_normal),
+            Paragraph(reserva.id_habitacion.categoria_tipo, style_normal),
+            Paragraph(entrada.strftime('%d/%m/%Y'), style_normal),
+            Paragraph(salida.strftime('%d/%m/%Y'), style_normal),
+            Paragraph(str(1 + acompanantes.count()), style_normal),
+            Paragraph(f"${precio_noche}", style_normal),
+            Paragraph(reserva.modalidad_pago, style_normal),
+            Paragraph(getattr(titular, 'medio_transporte', None) or "Propio / Own", style_normal),
+        ]
     ]
 
-    tabla_firmas = Table(
-        datos_firmas,
-        colWidths=[firma_ancho, firma_ancho]
-    )
-    tabla_firmas.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+    tabla_estancia = Table(estancia_data, colWidths=[ancho_util * (1/8)] * 8)
+    tabla_estancia.setStyle(TableStyle([
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f0f0f0')),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+    ]))
+    elements.append(tabla_estancia)
+    elements.append(Spacer(1, 3 * mm))
+
+    # DATOS PERSONALES DEL TITULAR
+    def linea_datos(label_es, label_en, valor):
+        return Paragraph(f"<b>{label_es}</b> <i>{label_en}</i>: <u>&nbsp;&nbsp;{valor}&nbsp;&nbsp;</u>", style_normal)
+
+    datos_personales = [
+        [linea_datos("Nombre Completo /", "Full Name", f"{titular.nombres} {titular.apellidos}"),
+            linea_datos("Edad /", "Age", titular.edad),
+            linea_datos("C.I. /", "Passport", f"{titular.tipo_documento}-{titular.numero_documento}")],
+        [linea_datos("Fecha de Nacimiento /", "Date of Birth", titular.fecha_nacimiento.strftime('%d/%m/%Y') if titular.fecha_nacimiento else '—'),
+            linea_datos("Estado Civil /", "Marital Status", titular.estado_civil or '—'),
+            linea_datos("Nacionalidad /", "Nationality", titular.nacionalidad or '—')],
+        [linea_datos("Dirección /", "Address", titular.procedencia or '—'),
+            linea_datos("Ocupación /", "Occupation", titular.tipo_cliente_profesion or '—'),
+            Paragraph("", style_normal)],
+        [linea_datos("Teléfono /", "Telephone", titular.telefono or '—'),
+            linea_datos("Alergias /", "Allergies", getattr(titular, 'alergias', None) or "Ninguna / None"),
+            linea_datos("Correo electrónico /", "Email", titular.email or "—")],
+    ]
+
+    tabla_personal = Table(datos_personales, colWidths=[ancho_util * 0.45, ancho_util * 0.30, ancho_util * 0.25])
+    tabla_personal.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('LINEBELOW', (0, 0), (-1, -1), 0.5, colors.lightgrey),
+    ]))
+    elements.append(tabla_personal)
+    elements.append(Spacer(1, 4 * mm))
+
+    # FIRMAS
+    firma_huesped = Table(
+        [[Paragraph("________________________", style_normal)], [Paragraph("<b>Firma /</b> <i>Signature</i>", style_small)]],
+        colWidths=[ancho_util * 0.40]
+    )
+    firma_huesped.setStyle(TableStyle([('ALIGN', (0, 0), (-1, -1), 'CENTER')]))
+
+    firma_recepcion = Table(
+        [[Paragraph("________________________", style_normal)], [Paragraph("<b>Firma Recepcionista</b>", style_small)]],
+        colWidths=[ancho_util * 0.40]
+    )
+    firma_recepcion.setStyle(TableStyle([('ALIGN', (0, 0), (-1, -1), 'CENTER')]))
+
+    tabla_firmas_layout = Table([[firma_huesped, "", firma_recepcion]], colWidths=[ancho_util * 0.45, ancho_util * 0.10, ancho_util * 0.45])
+    tabla_firmas_layout.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
         ('LEFTPADDING', (0, 0), (-1, -1), 0),
         ('RIGHTPADDING', (0, 0), (-1, -1), 0),
     ]))
+    elements.append(tabla_firmas_layout)
+    elements.append(Spacer(1, 4 * mm))
 
-    tabla_firmas_centrada = Table(
-        [[tabla_firmas]],
-        colWidths=[ancho_util]
+    # ACOMPAÑANTES UNIFICADOS (Estructura idéntica al formato físico)
+    if acompanantes.exists():
+        elements.append(Paragraph("<b>ACOMPAÑANTES / GRUPO ADICIONAL</b>", style_small_bold))
+        elements.append(Spacer(1, 1 * mm))
+
+        acomp_data = [[
+            Paragraph('<b>Nombre</b><br/><i>Name</i>', style_small),
+            Paragraph('<b>Apellido</b><br/><i>Surname</i>', style_small),
+            Paragraph('<b>C.I.</b><br/><i>Passport</i>', style_small),
+            Paragraph('<b>Nacionalidad</b><br/><i>Nationality</i>', style_small),
+            Paragraph('<b>Edad</b><br/><i>Age</i>', style_small),
+            Paragraph('<b>Dirección</b><br/><i>Address</i>', style_small),
+            Paragraph('<b>Firma</b><br/><i>Signature</i>', style_small),
+        ]]
+
+        for acomp in acompanantes:
+            h = acomp.id_huesped
+            acomp_data.append([
+                Paragraph(f"{h.nombres}", style_normal),
+                Paragraph(f"{h.apellidos}", style_normal),
+                Paragraph(f"{h.tipo_documento}-{h.numero_documento}", style_normal),
+                Paragraph(f"{h.nacionalidad or '—'}", style_normal),
+                Paragraph(f"{h.edad or '—'}", style_normal),
+                Paragraph(f"{h.procedencia or '—'}", style_normal),
+                Paragraph("", style_normal),
+            ])
+
+        for _ in range(max(0, 2 - len(acompanantes))):
+            acomp_data.append([Paragraph("", style_normal)] * 7)
+
+        tabla_acomp = Table(acomp_data, colWidths=[ancho_util * 0.18, ancho_util * 0.18, ancho_util * 0.15, ancho_util * 0.12, ancho_util * 0.08, ancho_util * 0.19, ancho_util * 0.10])
+        tabla_acomp.setStyle(TableStyle([
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f0f0f0')),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ]))
+        elements.append(tabla_acomp)
+        elements.append(Spacer(1, 4 * mm))
+
+    # TEXTO LEGAL
+    texto_legal = (
+        "<b>CONDICIONES GENERALES DEL CONTRATO:</b> El huésped se compromete a respetar las normas internas del establecimiento. "
+        "El hotel no se hace responsable por objetos de valor no depositados en la caja de seguridad de la recepción. "
+        "El pago de la tarifa debe realizarse de manera oportuna según lo acordado. La salida (check-out) debe efectuarse a la hora estipulada. "
+        "El huésped es responsable de cualquier daño causado a las instalaciones o mobiliario de la habitación."
     )
-    tabla_firmas_centrada.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 0),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-        ('TOPPADDING', (0, 0), (-1, -1), 0),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-    ]))
-
-    elements.append(tabla_firmas_centrada)
-
-    # --- REVERSO ---
-    elements.append(PageBreak())
-
-    elements.append(Paragraph('<b>REGISTRO DE CONSUMOS Y PAGOS</b>', style_title))
-    elements.append(Paragraph(f'Huésped: {titular.nombres} {titular.apellidos}', style_small))
-    elements.append(Paragraph(f'Habitación: {reserva.id_habitacion.numero}', style_small))
-    elements.append(Spacer(1, 2 * mm))
-
-    consumos = reserva.consumos.all().order_by('fecha_hora')
-    pagos = reserva.pagos.all().order_by('fecha_hora')
-
-    movimientos = []
-    for c in consumos:
-        movimientos.append({
-            'fecha': c.fecha_hora,
-            'descripcion': f'{c.tipo_consumo}: {c.descripcion} (x{c.cantidad})',
-            'tipo': 'Consumo',
-            'monto': float(c.total),
-            'referencia': '',
-        })
-    for p in pagos:
-        movimientos.append({
-            'fecha': p.fecha_hora,
-            'descripcion': 'Pago registrado',
-            'tipo': p.metodo_pago,
-            'monto': float(p.monto),
-            'referencia': p.numero_referencia or '',
-        })
-    movimientos.sort(key=lambda x: x['fecha'])
-
-    datos_reverso = [[
-        Paragraph('<b>Nº</b>', style_header),
-        Paragraph('<b>Fecha</b>', style_header),
-        Paragraph('<b>Descripción</b>', style_header),
-        Paragraph('<b>Forma Pago</b>', style_header),
-        Paragraph('<b>Monto</b>', style_header),
-        Paragraph('<b>Ref.</b>', style_header),
-    ]]
-
-    for i, m in enumerate(movimientos, 1):
-        datos_reverso.append([
-            Paragraph(str(i), style_small),
-            Paragraph(m['fecha'].strftime('%d/%m %H:%M'), style_small),
-            Paragraph(m['descripcion'], style_small),
-            Paragraph(m['tipo'], style_small),
-            Paragraph(f'${m["monto"]:.2f}', style_small),
-            Paragraph(m['referencia'], style_small),
-        ])
-
-    tabla_reverso = Table(
-        datos_reverso,
-        colWidths=[ancho_util * 0.08, ancho_util * 0.18, ancho_util * 0.32, ancho_util * 0.18, ancho_util * 0.14, ancho_util * 0.10]
-    )
-    tabla_reverso.setStyle(_estilo_celdas(header=True))
-    elements.append(tabla_reverso)
+    elements.append(Paragraph(texto_legal, style_legal))
 
     doc.build(elements)
     buffer.seek(0)
     return buffer
 
 
+# --- REGISTRO SEMANAL DE RESERVACIONES ---
 def generar_registro_reservaciones_semanal(fecha_referencia=None):
-    from datetime import timedelta
-    from apps.reservaciones.models import Reservacion
-    from apps.habitaciones.models import Habitacion
-    from apps.configuracion.models import ColoresTipoCliente
-
     if fecha_referencia is None:
         fecha_referencia = date.today()
 
     lunes = fecha_referencia - timedelta(days=fecha_referencia.weekday())
     domingo = lunes + timedelta(days=6)
     dias_semana = [lunes + timedelta(days=i) for i in range(7)]
-    nombres_dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+    nombres_dias = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+
+    from apps.reservaciones.models import Reservacion
+    from apps.habitaciones.models import Habitacion
+    from apps.configuracion.models import ColoresTipoCliente
 
     habitaciones = Habitacion.objects.all().order_by('piso', 'numero')
     reservas = Reservacion.objects.filter(
@@ -345,66 +295,49 @@ def generar_registro_reservaciones_semanal(fecha_referencia=None):
         colores_tipo[color.tipo_cliente_profesion] = color.color
 
     buffer = BytesIO()
+    # Ajustado a orientación Horizontal (Landscape) exacta de 297mm x 210mm
     page_width, page_height = 297 * mm, 210 * mm
     doc = SimpleDocTemplate(
         buffer,
         pagesize=(page_width, page_height),
-        topMargin=12 * mm,
-        bottomMargin=12 * mm,
-        leftMargin=12 * mm,
-        rightMargin=12 * mm,
+        topMargin=15 * mm,
+        bottomMargin=15 * mm,
+        leftMargin=15 * mm,
+        rightMargin=15 * mm,
     )
-    ancho_util = page_width - 24 * mm
+    ancho_util = page_width - 30 * mm
 
     elements = []
     styles = getSampleStyleSheet()
 
-    style_title = ParagraphStyle('TitlePDF', parent=styles['Title'], fontSize=14, leading=16, alignment=TA_CENTER, spaceAfter=2)
-    style_subtitle = ParagraphStyle('SubPDF', parent=styles['Normal'], fontSize=9, leading=11, alignment=TA_CENTER, textColor=colors.grey)
-    style_cell = ParagraphStyle('Cell', parent=styles['Normal'], fontSize=6.5, leading=8)
-    style_cell_bold = ParagraphStyle('CellBold', parent=styles['Normal'], fontSize=6.5, leading=8, fontName='Helvetica-Bold')
-    style_header = ParagraphStyle('Header', parent=styles['Normal'], fontSize=7, leading=9, fontName='Helvetica-Bold', alignment=TA_CENTER, textColor=colors.white)
-    style_piso = ParagraphStyle('Piso', parent=styles['Normal'], fontSize=7, leading=9, fontName='Helvetica-Bold', textColor=colors.HexColor('#b38e5d'))
-    style_leyenda = ParagraphStyle('Leyenda', parent=styles['Normal'], fontSize=6, leading=8, textColor=colors.HexColor('#666666'))
+    style_cell = ParagraphStyle('Cell', parent=styles['Normal'], fontSize=6, leading=8)
+    style_cell_bold = ParagraphStyle('CellBold', parent=styles['Normal'], fontSize=6, leading=8, fontName='Helvetica-Bold')
+    style_header = ParagraphStyle('Header', parent=styles['Normal'], fontSize=6, leading=8, fontName='Helvetica-Bold', alignment=TA_CENTER, textColor=colors.black)
+    style_piso = ParagraphStyle('Piso', parent=styles['Normal'], fontSize=6, leading=8, fontName='Helvetica-Bold')
+    style_leyenda = ParagraphStyle('Leyenda', parent=styles['Normal'], fontSize=5, leading=7)
 
-    config = _get_config()
-    nombre_hotel = config.get('nombre_hotel', 'Hotel Salma Suite VIP')
-    rif = config.get('rif', '')
-    direccion = config.get('direccion', '')
-    telefono = config.get('telefono', '')
-
-    logo_path = _get_logo_path()
-    if logo_path:
-        logo = Image(logo_path, width=30 * mm, height=15 * mm)
-        logo.hAlign = 'CENTER'
-        elements.append(logo)
-        elements.append(Spacer(1, 2 * mm))
-
-    elements.append(Paragraph(f'<b>{nombre_hotel}</b>', style_title))
-    if rif:
-        elements.append(Paragraph(f'RIF: {rif}', style_subtitle))
-    elements.append(Paragraph(f'{direccion}  •  {telefono}', style_subtitle))
-    elements.append(Spacer(1, 3 * mm))
-    elements.append(Paragraph('<b>REGISTRO DE RESERVACIONES SEMANAL</b>', style_title))
-    elements.append(Paragraph(f'Semana del {lunes.strftime("%d/%m/%Y")} al {domingo.strftime("%d/%m/%Y")}', style_subtitle))
-    elements.append(Spacer(1, 5 * mm))
+    header_table, _ = _construir_encabezado(
+        "REGISTRO DE RESERVACIONES SEMANAL",
+        "WEEKLY BOOKING REGISTER",
+        f"Semana del {lunes.strftime('%d/%m/%Y')} al {domingo.strftime('%d/%m/%Y')}",
+        ancho_util=ancho_util
+    )
+    elements.append(header_table)
+    elements.append(Spacer(1, 4 * mm))
 
     if colores_tipo:
         leyenda_items = []
         for tipo, color_hex in colores_tipo.items():
-            leyenda_items.append(f'<font color="{color_hex}">●</font> {tipo}')
+            leyenda_items.append(f'<font color="{color_hex}"><b>■</b></font> {tipo}')
         leyenda_html = ' &nbsp;&nbsp;|&nbsp;&nbsp; '.join(leyenda_items)
         elements.append(Paragraph(leyenda_html, style_leyenda))
-        elements.append(Spacer(1, 3 * mm))
+        elements.append(Spacer(1, 2 * mm))
 
-    col_widths = [ancho_util * 0.10]
-    for _ in range(7):
-        col_widths.append(ancho_util * 0.09)
-    col_widths.append(ancho_util * 0.18)
-
+    # Márgenes de columnas recalculados exactamente sobre el 'ancho_util'
+    col_widths = [ancho_util * 0.10] + [ancho_util * 0.09] * 7 + [ancho_util * 0.18]
     headers = [Paragraph('<b>Habitación</b>', style_header)]
     for i, dia in enumerate(dias_semana):
-        headers.append(Paragraph(f'<b>{nombres_dias[i][:3]}</b><br/>{dia.strftime("%d/%m")}', style_header))
+        headers.append(Paragraph(f'<b>{nombres_dias[i]}</b><br/>{dia.strftime("%d/%m")}', style_header))
     headers.append(Paragraph('<b>Huésped Titular</b>', style_header))
 
     datos = [headers]
@@ -419,14 +352,17 @@ def generar_registro_reservaciones_semanal(fecha_referencia=None):
             r = mapa.get((hab.id, dia))
             if r:
                 tipo_cliente = r.id_huesped_titular.tipo_cliente_profesion
-                color = colores_tipo.get(tipo_cliente, '#b38e5d')
+                color = colores_tipo.get(tipo_cliente, '#000000')
+
+                # Indicadores de ocupación más llamativos, en negrita y con mayor tamaño visual
                 if r.fecha_entrada == dia:
-                    simbolo = '→'
+                    simbolo = '▶ LLEGADA'
                 elif r.fecha_salida == dia + timedelta(days=1):
-                    simbolo = '✓'
+                    simbolo = '✔ SALIDA'
                 else:
-                    simbolo = '●'
-                fila.append(Paragraph(f'<font color="{color}">{simbolo}</font>', style_cell))
+                    simbolo = '● OCUPADO'
+
+                fila.append(Paragraph(f'<font color="{color}" size="6"><b>{simbolo}</b></font>', style_cell))
             else:
                 fila.append(Paragraph('', style_cell))
 
@@ -441,15 +377,14 @@ def generar_registro_reservaciones_semanal(fecha_referencia=None):
 
     tabla = Table(datos, colWidths=col_widths, repeatRows=1)
     tabla.setStyle(TableStyle([
-        ('GRID', (0, 0), (-1, -1), 0.3, colors.HexColor('#cccccc')),
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2d1b14')),
+        ('GRID', (0, 0), (-1, -1), 0.3, colors.black),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f0f0f0')),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('ALIGN', (1, 1), (-2, -1), 'CENTER'),
         ('TOPPADDING', (0, 0), (-1, -1), 3),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
         ('LEFTPADDING', (0, 0), (-1, -1), 4),
         ('RIGHTPADDING', (0, 0), (-1, -1), 4),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#fafaf5')]),
     ]))
     elements.append(tabla)
 
@@ -458,6 +393,7 @@ def generar_registro_reservaciones_semanal(fecha_referencia=None):
     return buffer
 
 
+# --- CIERRE DE CAJA DIARIO ---
 def generar_cierre_caja_pdf(fecha):
     from apps.reservaciones.models import Pago
     from apps.bitacora.models import CierreCaja
@@ -467,7 +403,6 @@ def generar_cierre_caja_pdf(fecha):
     total_tarjeta = pagos.filter(metodo_pago='Tarjeta').aggregate(t=Sum('monto'))['t'] or Decimal('0.00')
     total_pago_movil = pagos.filter(metodo_pago='PagoMovil').aggregate(t=Sum('monto'))['t'] or Decimal('0.00')
     total_general = total_efectivo + total_tarjeta + total_pago_movil
-    cerrado = CierreCaja.objects.filter(fecha=fecha).exists()
 
     buffer = BytesIO()
     page_width, page_height = 210 * mm, 297 * mm
@@ -484,42 +419,20 @@ def generar_cierre_caja_pdf(fecha):
     elements = []
     styles = getSampleStyleSheet()
 
-    style_title = ParagraphStyle('TitlePDF', parent=styles['Title'], fontSize=14, leading=16, alignment=TA_CENTER, spaceAfter=2)
-    style_subtitle = ParagraphStyle('SubPDF', parent=styles['Normal'], fontSize=9, leading=11, alignment=TA_CENTER, textColor=colors.grey)
     style_normal = ParagraphStyle('NormalPDF', parent=styles['Normal'], fontSize=8, leading=10)
     style_bold = ParagraphStyle('BoldPDF', parent=styles['Normal'], fontSize=8, leading=10, fontName='Helvetica-Bold')
-    style_header = ParagraphStyle('HeaderPDF', parent=styles['Normal'], fontSize=8, leading=10, fontName='Helvetica-Bold', textColor=colors.white)
-    style_card_label = ParagraphStyle('CardLabel', parent=styles['Normal'], fontSize=7, leading=9, textColor=colors.HexColor('#827066'), alignment=TA_CENTER)
+    style_header = ParagraphStyle('HeaderPDF', parent=styles['Normal'], fontSize=8, leading=10, fontName='Helvetica-Bold', textColor=colors.black)
+    style_card_label = ParagraphStyle('CardLabel', parent=styles['Normal'], fontSize=7, leading=9, alignment=TA_CENTER)
     style_card_value = ParagraphStyle('CardValue', parent=styles['Normal'], fontSize=12, leading=14, fontName='Helvetica-Bold', alignment=TA_CENTER)
-    style_footer = ParagraphStyle('FooterPDF', parent=styles['Normal'], fontSize=6, leading=8, textColor=colors.HexColor('#999999'), alignment=TA_CENTER)
 
-    config = _get_config()
-    nombre_hotel = config.get('nombre_hotel', 'Hotel Salma Suite VIP')
-    rif = config.get('rif', '')
-    direccion = config.get('direccion', '')
-    telefono = config.get('telefono', '')
-
-    logo_path = _get_logo_path()
-    if logo_path:
-        logo = Image(logo_path, width=25 * mm, height=12 * mm)
-        logo.hAlign = 'CENTER'
-        elements.append(logo)
-        elements.append(Spacer(1, 2 * mm))
-
-    elements.append(Paragraph(f'<b>{nombre_hotel}</b>', style_title))
-    if rif:
-        elements.append(Paragraph(f'RIF: {rif}', style_subtitle))
-    elements.append(Paragraph(f'{direccion}  •  {telefono}', style_subtitle))
-    elements.append(Spacer(1, 3 * mm))
-    elements.append(Paragraph('<b>CIERRE DE CAJA DIARIO</b>', style_title))
-    elements.append(Paragraph(f'Fecha: {fecha.strftime("%d/%m/%Y")}', style_subtitle))
-
-    if cerrado:
-        elements.append(Paragraph('<font color="#2d6a4f"><b>✓ CERRADO</b></font>', style_subtitle))
-    else:
-        elements.append(Paragraph('<font color="#9b2226"><b>⚠ PENDIENTE DE CIERRE</b></font>', style_subtitle))
-
-    elements.append(Spacer(1, 8 * mm))
+    header_table, _ = _construir_encabezado(
+        "CIERRE DE CAJA DIARIO",
+        "DAILY CASH CLOSING",
+        f"Fecha: {fecha.strftime('%d/%m/%Y')}",
+        ancho_util=ancho_util
+    )
+    elements.append(header_table)
+    elements.append(Spacer(1, 4 * mm))
 
     card_width = ancho_util / 4
     tarjetas_labels = [
@@ -536,22 +449,18 @@ def generar_cierre_caja_pdf(fecha):
     ]
     tabla_tarjetas = Table([tarjetas_labels, tarjetas_valores], colWidths=[card_width] * 4)
     tabla_tarjetas.setStyle(TableStyle([
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#b38e5d')),
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2d1b14')),
-        ('BACKGROUND', (0, 1), (-1, 1), colors.HexColor('#fff9e6')),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f0f0f0')),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('TOPPADDING', (0, 0), (-1, -1), 8),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
     ]))
     elements.append(tabla_tarjetas)
-    elements.append(Spacer(1, 3 * mm))
+    elements.append(Spacer(1, 4 * mm))
 
     elements.append(Paragraph(f'<b>Cantidad de transacciones:</b> {pagos.count()}', style_bold))
-    elements.append(Spacer(1, 5 * mm))
-
-    elements.append(Paragraph('<b>DETALLE DE TRANSACCIONES</b>', style_bold))
-    elements.append(Spacer(1, 3 * mm))
+    elements.append(Spacer(1, 4 * mm))
 
     detalle_data = [[
         Paragraph('<b>Hora</b>', style_header),
@@ -575,15 +484,14 @@ def generar_cierre_caja_pdf(fecha):
     col_widths_detalle = [ancho_util * 0.10, ancho_util * 0.10, ancho_util * 0.30, ancho_util * 0.15, ancho_util * 0.15, ancho_util * 0.15]
     tabla_detalle = Table(detalle_data, colWidths=col_widths_detalle, repeatRows=1)
     tabla_detalle.setStyle(TableStyle([
-        ('GRID', (0, 0), (-1, -1), 0.3, colors.HexColor('#cccccc')),
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2d1b14')),
+        ('GRID', (0, 0), (-1, -1), 0.3, colors.black),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f0f0f0')),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('ALIGN', (-1, 0), (-1, -1), 'RIGHT'),
         ('LEFTPADDING', (0, 0), (-1, -1), 4),
         ('RIGHTPADDING', (0, 0), (-1, -1), 4),
         ('TOPPADDING', (0, 0), (-1, -1), 3),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#fafaf5')]),
     ]))
     elements.append(tabla_detalle)
 

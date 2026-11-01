@@ -29,7 +29,7 @@ def lista_huespedes(request):
         categoria = request.query_params.get('categoria')
         if categoria:
             qs = qs.filter(categoria=categoria)
-            
+
         solo_alojados = request.query_params.get('solo_alojados')
         if solo_alojados == '1':
             from apps.reservaciones.models import Reservacion
@@ -137,7 +137,7 @@ def exportar_huespedes_xls(request):
     # Datos
     for row_idx, h in enumerate(qs, header_row + 1):
         credito = f'Sí (${h.limite_credito})' if h.credito_autorizado else 'No'
-        
+
         datos_fila = [
             h.nombres,
             h.apellidos,

@@ -9,6 +9,11 @@ from apps.habitaciones.services import cambiar_estado as cambiar_estado_habitaci
 from apps.huespedes.models import Huesped
 from apps.bitacora.services import registrar_actividad
 
+def to_decimal(value) -> Decimal:
+    if isinstance(value, Decimal):
+        return value
+    return Decimal(str(value))
+
 def _calcular_totales(reservacion, calcular_consumos=False):
     reservacion.numero_noches = (reservacion.fecha_salida - reservacion.fecha_entrada).days
 
@@ -194,33 +199,42 @@ def realizar_checkout(reserva_id, usuario):
     if reserva.modalidad_pago in ['Contado', 'Abono'] and reserva.saldo_pendiente > 0:
         raise ValidationError('El saldo pendiente debe ser 0 para cerrar la reserva.')
 
-    cambiar_estado_habitacion(reserva.id_habitacion, 'Limpieza')
+    habitacion = reserva.id_habitacion
+    if habitacion.estado != 'Limpieza':
+        habitacion.estado = 'Limpieza'
+        habitacion.save()
+
     reserva.estado = 'Finalizada'
     reserva.fecha_checkout_real = timezone.now()
     reserva.save()
-    registrar_actividad('Check‑out', f'Check‑out habitación {reserva.id_habitacion.numero} - {reserva.id_huesped_titular}', usuario, f'Reserva-{reserva.id}')
+    registrar_actividad('Check‑out', f'Check‑out habitación {habitacion.numero} - {reserva.id_huesped_titular}', usuario, f'Reserva-{reserva.id}')
     return reserva
 
+@transaction.atomic
 def agregar_consumo(reserva_id, tipo, descripcion, cantidad, precio_unitario, producto=None, usuario=None):
     reserva = Reservacion.objects.get(pk=reserva_id)
-    if reserva.estado != 'EnCurso':
+    if reserva.estado not in ['EnCurso', 'Confirmada']:
         raise ValidationError('Solo se pueden cargar consumos a reservas en curso.')
-    with transaction.atomic():
-        consumo = Consumo.objects.create(
-            id_reservacion=reserva,
-            tipo_consumo=tipo,
-            descripcion=descripcion,
-            cantidad=cantidad,
-            precio_unitario=precio_unitario,
-            producto=producto
-        )
-        _calcular_totales(reserva, calcular_consumos=True)
-        reserva.save()
-        registrar_actividad('Consumo', f'Consumo {tipo} por ${consumo.total} agregado a reserva #{reserva.id}', usuario, f'Consumo-{consumo.id}')
-        return consumo
+
+    consumo = Consumo.objects.create(
+        id_reservacion=reserva,
+        tipo_consumo=tipo,
+        descripcion=descripcion,
+        cantidad=cantidad,
+        precio_unitario=precio_unitario,
+        producto=producto
+    )
+    _calcular_totales(reserva, calcular_consumos=True)
+    reserva.save()
+    registrar_actividad('Consumo', f'Consumo {tipo} por ${consumo.total} agregado a reserva #{reserva.id}', usuario, f'Consumo-{consumo.id}')
+    return consumo
 
 def registrar_pago_extra(reserva_id, monto, metodo_pago, numero_referencia='', usuario=None):
+    from decimal import Decimal
+
     reserva = Reservacion.objects.get(pk=reserva_id)
+
+    monto = Decimal(str(monto))
 
     if monto <= 0:
         raise ValidationError('El monto debe ser mayor a 0.')
@@ -247,8 +261,8 @@ def registrar_pago_extra(reserva_id, monto, metodo_pago, numero_referencia='', u
 
 def cancelar_reservacion(reserva_id, motivo, acta='', usuario=None):
     reserva = Reservacion.objects.get(pk=reserva_id)
-    if reserva.estado != 'Confirmada':
-        raise ValidationError('Solo se pueden cancelar reservas confirmadas.')
+    if reserva.estado not in ['Confirmada', 'EnCurso']:
+        raise ValidationError('Solo se pueden cancelar reservas confirmadas o en curso.')
     reserva.estado = 'Cancelada'
     reserva.motivo_cancelacion = motivo
     reserva.acta = acta

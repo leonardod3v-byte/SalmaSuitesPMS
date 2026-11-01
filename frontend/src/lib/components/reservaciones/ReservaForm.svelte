@@ -35,22 +35,26 @@
     let busquedaHuesped = $state('');
     let huespedes = $state<Huesped[]>([]);
     let titularSeleccionado = $state<Huesped | null>(null);
+    let mostrarDropdownTitular = $state(false);
 
     // Paso 2: Acompañantes
     let busquedaAcompanante = $state('');
     let huespedesAcompanantes = $state<Huesped[]>([]);
     let acompanantes = $state<Huesped[]>([]);
+    let mostrarDropdownAcompanante = $state(false);
 
     // Paso 3: Habitación
     let habitaciones = $state<Habitacion[]>([]);
     let habitacionSeleccionada = $state<Habitacion | null>(null);
     let filtroTipoHabitacion = $state('');
+
+    // FIX: Si la categoría es null o vacía, la mostramos como 'Sin categoría' para que no desaparezca del filtro
     let tiposHabitacionDisponibles = $derived(
-        [...new Set(habitaciones.map(h => h.categoria_tipo))].sort()
+        [...new Set(habitaciones.map(h => h.categoria_tipo || 'Sin categoría'))].sort()
     );
     let habitacionesFiltradas = $derived(
         filtroTipoHabitacion
-            ? habitaciones.filter(h => h.categoria_tipo === filtroTipoHabitacion)
+            ? habitaciones.filter(h => (h.categoria_tipo || 'Sin categoría') === filtroTipoHabitacion)
             : habitaciones
     );
 
@@ -78,17 +82,33 @@
     let totalPersonas = $derived(1 + acompanantes.length);
 
     async function buscarHuespedes() {
-        if (busquedaHuesped.length < 2) { huespedes = []; return; }
+        if (busquedaHuesped.length < 2) { huespedes = []; mostrarDropdownTitular = false; return; }
         try {
             huespedes = await fetchHuespedes(`search=${busquedaHuesped}`);
+            mostrarDropdownTitular = huespedes.length > 0;
         } catch { }
     }
 
     async function buscarAcompanantes() {
-        if (busquedaAcompanante.length < 2) { huespedesAcompanantes = []; return; }
+        if (busquedaAcompanante.length < 2) { huespedesAcompanantes = []; mostrarDropdownAcompanante = false; return; }
         try {
             huespedesAcompanantes = await fetchHuespedes(`search=${busquedaAcompanante}`);
+            mostrarDropdownAcompanante = huespedesAcompanantes.length > 0;
         } catch { }
+    }
+
+    // FIX: Al seleccionar, cerramos el dropdown
+    function seleccionarTitular(h: Huesped) {
+        titularSeleccionado = h;
+        mostrarDropdownTitular = false;
+        busquedaHuesped = ''; // Limpiar búsqueda
+    }
+
+    // FIX: Al seleccionar acompañante, cerramos el dropdown
+    function seleccionarAcompanante(h: Huesped) {
+        acompanantes = [...acompanantes, h];
+        mostrarDropdownAcompanante = false;
+        busquedaAcompanante = ''; // Limpiar búsqueda
     }
 
     async function cargarHabitaciones() {
@@ -200,13 +220,17 @@
                 </div>
             {/if}
 
-            <div class="border-t border-hotel-border/50 pt-4">
+            <div class="border-t border-hotel-border/50 pt-4 relative">
                 <p class="text-[10px] font-black uppercase tracking-wider text-hotel-gold mb-2">Huésped Titular</p>
-                <InputHotel placeholder="Buscar por nombre o documento..." bind:value={busquedaHuesped} oninput={buscarHuespedes} />
-                {#if huespedes.length > 0}
-                    <div class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar mt-2">
+                <InputHotel
+                    placeholder="Buscar por nombre o documento..."
+                    bind:value={busquedaHuesped}
+                    oninput={() => { buscarHuespedes(); mostrarDropdownTitular = true; }}
+                />
+                {#if mostrarDropdownTitular && huespedes.length > 0}
+                    <div class="absolute z-10 w-full mt-1 bg-hotel-surface border border-hotel-border rounded-lg shadow-xl max-h-40 overflow-y-auto custom-scrollbar">
                         {#each huespedes as h}
-                            <button type="button" onclick={() => titularSeleccionado = h} class="w-full text-left p-2 rounded-lg border transition-all {titularSeleccionado?.id === h.id ? 'border-hotel-gold bg-hotel-gold/5' : 'border-hotel-border hover:border-hotel-gold/50'}">
+                            <button type="button" onclick={() => seleccionarTitular(h)} class="w-full text-left p-2 hover:bg-hotel-gold/10 transition-colors border-b border-hotel-border/50 last:border-0">
                                 <p class="text-sm font-bold text-hotel-text-primary">{h.nombres} {h.apellidos}</p>
                                 <p class="text-[10px] text-hotel-text-tertiary">{h.tipo_documento}-{h.numero_documento}</p>
                             </button>
@@ -214,8 +238,12 @@
                     </div>
                 {/if}
                 {#if titularSeleccionado}
-                    <div class="p-2 mt-2 rounded-lg bg-hotel-gold/10 text-sm font-bold text-hotel-gold flex items-center gap-2">
-                        <Icon name="check" class="w-4 h-4" /> Titular: {titularSeleccionado.nombres} {titularSeleccionado.apellidos}
+                    <div class="p-2 mt-2 rounded-lg bg-hotel-gold/10 text-sm font-bold text-hotel-gold flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <Icon name="check" class="w-4 h-4" />
+                            Titular: {titularSeleccionado.nombres} {titularSeleccionado.apellidos}
+                        </div>
+                        <button type="button" onclick={() => titularSeleccionado = null} class="text-[10px] text-hotel-error-light hover:underline">Cambiar</button>
                     </div>
                 {/if}
             </div>
@@ -228,20 +256,25 @@
             <p class="text-[10px] font-black uppercase tracking-wider text-hotel-gold">Paso 2 — Acompañantes (opcional)</p>
             <p class="text-xs text-hotel-text-secondary">Total personas: <b>{totalPersonas}</b></p>
 
-            <InputHotel placeholder="Buscar por nombre o documento..." bind:value={busquedaAcompanante} oninput={buscarAcompanantes} />
-
-            {#if huespedesAcompanantes.length > 0}
-                <div class="space-y-2 max-h-36 overflow-y-auto custom-scrollbar">
-                    {#each huespedesAcompanantes as h}
-                        {#if h.id !== titularSeleccionado?.id && !acompanantes.find(a => a.id === h.id)}
-                            <button type="button" onclick={() => acompanantes = [...acompanantes, h]} class="w-full text-left p-2 rounded-lg border border-hotel-border hover:border-hotel-gold/50 transition-all">
-                                <p class="text-sm font-bold text-hotel-text-primary">{h.nombres} {h.apellidos}</p>
-                                <p class="text-[10px] text-hotel-text-tertiary">{h.tipo_documento}-{h.numero_documento}</p>
-                            </button>
-                        {/if}
-                    {/each}
-                </div>
-            {/if}
+            <div class="relative">
+                <InputHotel
+                    placeholder="Buscar por nombre o documento..."
+                    bind:value={busquedaAcompanante}
+                    oninput={() => { buscarAcompanantes(); mostrarDropdownAcompanante = true; }}
+                />
+                {#if mostrarDropdownAcompanante && huespedesAcompanantes.length > 0}
+                    <div class="absolute z-10 w-full mt-1 bg-hotel-surface border border-hotel-border rounded-lg shadow-xl max-h-36 overflow-y-auto custom-scrollbar">
+                        {#each huespedesAcompanantes as h}
+                            {#if h.id !== titularSeleccionado?.id && !acompanantes.find(a => a.id === h.id)}
+                                <button type="button" onclick={() => seleccionarAcompanante(h)} class="w-full text-left p-2 hover:bg-hotel-gold/10 transition-colors border-b border-hotel-border/50 last:border-0">
+                                    <p class="text-sm font-bold text-hotel-text-primary">{h.nombres} {h.apellidos}</p>
+                                    <p class="text-[10px] text-hotel-text-tertiary">{h.tipo_documento}-{h.numero_documento}</p>
+                                </button>
+                            {/if}
+                        {/each}
+                    </div>
+                {/if}
+            </div>
 
             {#if acompanantes.length > 0}
                 <div class="space-y-2 mt-4 pt-4 border-t border-hotel-border/50">
@@ -252,7 +285,7 @@
                                 <p class="text-sm font-bold text-hotel-text-primary">{a.nombres} {a.apellidos}</p>
                                 <p class="text-[10px] text-hotel-text-tertiary">{a.tipo_documento}-{a.numero_documento}</p>
                             </div>
-                            <button type="button" onclick={() => acompanantes = acompanantes.filter(x => x.id !== a.id)} class="text-hotel-error-light text-xs font-bold">Quitar</button>
+                            <button type="button" onclick={() => acompanantes = acompanantes.filter(x => x.id !== a.id)} class="text-hotel-error-light text-xs font-bold hover:underline">Quitar</button>
                         </div>
                     {/each}
                 </div>
@@ -274,21 +307,29 @@
                 bind:value={filtroTipoHabitacion}
             />
 
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {#each habitacionesFiltradas as h}
-                    <button type="button" onclick={() => habitacionSeleccionada = h} class="p-3 rounded-xl border text-left transition-all {habitacionSeleccionada?.id === h.id ? 'border-hotel-gold bg-hotel-gold/5' : 'border-hotel-border hover:border-hotel-gold/50'}">
-                        <p class="font-bold text-sm text-hotel-text-primary">#{h.numero}</p>
-                        <p class="text-[10px] text-hotel-text-tertiary">{h.categoria_tipo}</p>
+            {#if habitacionesFiltradas.length === 0}
+                <div class="p-4 text-center rounded-xl border border-dashed border-hotel-border">
+                    <p class="text-sm text-hotel-text-secondary">No hay habitaciones disponibles con este filtro.</p>
+                </div>
+            {:else}
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-64 overflow-y-auto custom-scrollbar p-1">
+                    {#each habitacionesFiltradas as h}
+                        <button type="button" onclick={() => habitacionSeleccionada = h} class="p-3 rounded-xl border text-left transition-all {habitacionSeleccionada?.id === h.id ? 'border-hotel-gold bg-hotel-gold/5' : 'border-hotel-border hover:border-hotel-gold/50'}">
+                            <p class="font-bold text-sm text-hotel-text-primary">#{h.numero}</p>
+                            <p class="text-[10px] text-hotel-text-tertiary">{h.categoria_tipo || 'Sin categoría'}</p>
 
-                        {#if esEmpresa && h.precio_empresa}
-                            <p class="text-[10px] text-hotel-success-light font-bold mt-1">${h.precio_empresa}/noche (Empresa)</p>
-                        {:else}
-                            <p class="text-[10px] text-hotel-gold font-bold mt-1">${h.precio_por_noche}/noche</p>
-                        {/if}
-                        <p class="text-[9px] text-hotel-text-tertiary">Cap: {h.capacidad_maxima} pers.</p>
-                    </button>
-                {/each}
-            </div>
+                            {#if esEmpresa && h.precio_empresa}
+                                <p class="text-[10px] text-hotel-success-light font-bold mt-1">${h.precio_empresa}/noche (Empresa)</p>
+                            {:else}
+                                <p class="text-[10px] text-hotel-gold font-bold mt-1">${h.precio_por_noche}/noche</p>
+                            {/if}
+                            <p class="text-[9px] text-hotel-text-tertiary mt-1 flex items-center gap-1">
+                                <Icon name="users" class="w-3 h-3" /> Cap: {h.capacidad_maxima} pers.
+                            </p>
+                        </button>
+                    {/each}
+                </div>
+            {/if}
         </div>
     {/if}
 

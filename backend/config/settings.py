@@ -86,6 +86,7 @@ LANGUAGE_CODE = 'es-ve'
 TIME_ZONE = 'America/Caracas'
 USE_I18N = True
 USE_TZ = True
+USE_THOUSAND_SEPARATOR = False
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
@@ -105,8 +106,10 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
+    'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
 }
 
+# --- CONFIGURACIÓN DE CORS Y CSRF ---
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = os.environ.get(
     'CORS_ORIGINS',
@@ -129,6 +132,7 @@ CSRF_TRUSTED_ORIGINS = os.environ.get(
     'https://salma-suites-pms.vercel.app,http://localhost:5173,http://127.0.0.1:5173'
 ).split(',')
 
+# Cookies para Producción (Vercel + Render)
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'None'
 SESSION_COOKIE_SECURE = True

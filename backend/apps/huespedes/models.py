@@ -38,7 +38,7 @@ class Huesped(models.Model):
     nombres = models.CharField(max_length=100)
     apellidos = models.CharField(max_length=100)
     fecha_nacimiento = models.DateField()
-    edad = models.PositiveSmallIntegerField(editable=False)  # se calculará en el save
+    edad = models.PositiveSmallIntegerField(editable=False)
     nacionalidad = models.CharField(max_length=50)
     estado_civil = models.CharField(max_length=20, choices=ESTADO_CIVIL)
     telefono = models.CharField(max_length=20)
@@ -49,6 +49,7 @@ class Huesped(models.Model):
     credito_autorizado = models.BooleanField(default=False)
     limite_credito = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     observaciones = models.TextField(blank=True)
+    medio_transporte = models.CharField(max_length=50, blank=True, null=True)
 
     class Meta:
         db_table = 'huespedes'

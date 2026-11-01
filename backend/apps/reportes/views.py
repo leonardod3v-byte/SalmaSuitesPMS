@@ -64,9 +64,8 @@ def hoja_huesped_pdf(request, reserva_id):
     reserva = get_object_or_404(Reservacion, pk=reserva_id)
     buffer = generar_hoja_huesped(reserva)
 
-    # Nombre descriptivo: hoja_registro_Ana_Martinez_2026-10-30.pdf
     nombre_huesped = f"{reserva.id_huesped_titular.nombres}_{reserva.id_huesped_titular.apellidos}".replace(' ', '_')
-    filename = f'hoja_registro_{nombre_huesped}_{date.today().isoformat()}.pdf'
+    filename = f'Hoja_Registro_{nombre_huesped}_{date.today().isoformat()}.pdf'
 
     return FileResponse(buffer, as_attachment=False, filename=filename, content_type='application/pdf')
 
@@ -84,7 +83,7 @@ def registro_reservaciones_pdf(request):
         fecha = date.today()
 
     buffer = generar_registro_reservaciones_semanal(fecha)
-    filename = f'registro_reservaciones_semana_{fecha.isoformat()}.pdf'
+    filename = f'Registro_Semanal_{fecha.isoformat()}.pdf'
 
     return FileResponse(buffer, as_attachment=False, filename=filename, content_type='application/pdf')
 
@@ -101,6 +100,6 @@ def cierre_caja_pdf(request):
         return Response({'error': 'Formato de fecha inválido.'}, status=status.HTTP_400_BAD_REQUEST)
 
     buffer = generar_cierre_caja_pdf(fecha)
-    filename = f'cierre_caja_{fecha.isoformat()}.pdf'
+    filename = f'Cierre_Caja_{fecha.isoformat()}.pdf'
 
     return FileResponse(buffer, as_attachment=False, filename=filename, content_type='application/pdf')

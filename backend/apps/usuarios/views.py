@@ -19,6 +19,7 @@ from .serializers import (
 from . import services
 from apps.bitacora.models import ActividadLog
 from apps.bitacora.serializers import ActividadLogSerializer
+from django.contrib.auth.models import update_last_login
 
 User = get_user_model()
 RESET_CACHE_PREFIX = "pwd_reset_"
@@ -34,6 +35,9 @@ def login_view(request):
         print("ERROR LOGIN:", serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     user = serializer.validated_data
+
+    update_last_login(None, user)
+
     token, _ = Token.objects.get_or_create(user=user)
 
     response = Response({
@@ -47,7 +51,6 @@ def login_view(request):
         }
     }, status=status.HTTP_200_OK)
 
-    # Cookie HttpOnly para web
     response.set_cookie(
         key='auth_token',
         value=token.key,
@@ -56,7 +59,6 @@ def login_view(request):
         samesite='None',
         max_age=60 * 60 * 24 * 7
     )
-    # Header de respaldo por si la cookie falla en algunos navegadores
     response['X-Auth-Token'] = token.key
     return response
 
@@ -119,13 +121,11 @@ def request_password_reset(request):
     try:
         user = User.objects.get(email=email)
     except User.DoesNotExist:
-        # No revelar si el correo existe o no
         return Response({'message': 'Si el correo está registrado, recibirás un código de verificación.'}, status=status.HTTP_200_OK)
 
     # Generar código numérico de 6 dígitos
     code = get_random_string(6, allowed_chars='0123456789')
 
-    # Guardar en caché por 15 minutos
     cache.set(f'{RESET_CACHE_PREFIX}{email}', {'user_id': user.id, 'code': code}, timeout=900)
 
     # Enviar correo real
@@ -138,7 +138,6 @@ def request_password_reset(request):
             fail_silently=False,
         )
     except Exception as e:
-        # Si falla el envío, eliminar el código de caché y devolver error
         cache.delete(f'{RESET_CACHE_PREFIX}{email}')
         return Response({'error': 'Error al enviar el correo. Intenta de nuevo más tarde.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -185,7 +184,7 @@ def reset_password(request):
     except User.DoesNotExist:
         return Response({'error': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
-# Gestión de usuarios (admin) -----------------------------------
+# Gestión de usuarios -----------------------------------
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
@@ -200,11 +199,11 @@ def gestion_usuarios(request):
 
     elif request.method == 'POST':
         print("DATA recibida:", request.data)
-        
+
         data = request.data.copy()
         if 'phone' not in data:
             data['phone'] = ''
-        
+
         serializer = UserCreateUpdateSerializer(data=data)
         if serializer.is_valid():
             user = serializer.save()
