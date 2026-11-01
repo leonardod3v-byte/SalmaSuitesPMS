@@ -9,6 +9,7 @@ from django.core.cache import cache
 from django.utils.crypto import get_random_string
 from django.core.exceptions import ValidationError
 import uuid
+import logging
 
 from .serializers import (
     UserSerializer,
@@ -23,6 +24,7 @@ from django.contrib.auth.models import update_last_login
 
 User = get_user_model()
 RESET_CACHE_PREFIX = "pwd_reset_"
+logger = logging.getLogger(__name__)
 
 # Autenticación --------------------------------------------------
 
@@ -59,7 +61,6 @@ def login_view(request):
         samesite='None',
         max_age=60 * 60 * 24 * 7
     )
-    response['X-Auth-Token'] = token.key
     return response
 
 @api_view(['POST'])
@@ -111,9 +112,6 @@ from django.conf import settings
 @permission_classes([AllowAny])
 @csrf_exempt
 def request_password_reset(request):
-    """
-    Paso 1: Genera un código de 6 dígitos y lo envía por correo electrónico.
-    """
     email = request.data.get('email')
     if not email:
         return Response({'error': 'El correo electrónico es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -123,12 +121,9 @@ def request_password_reset(request):
     except User.DoesNotExist:
         return Response({'message': 'Si el correo está registrado, recibirás un código de verificación.'}, status=status.HTTP_200_OK)
 
-    # Generar código numérico de 6 dígitos
     code = get_random_string(6, allowed_chars='0123456789')
-
     cache.set(f'{RESET_CACHE_PREFIX}{email}', {'user_id': user.id, 'code': code}, timeout=900)
 
-    # Enviar correo real
     try:
         send_mail(
             subject='Código de recuperación - Salma Suite VIP',
@@ -137,9 +132,11 @@ def request_password_reset(request):
             recipient_list=[email],
             fail_silently=False,
         )
+        logger.info(f"Correo de recuperación enviado a {email}")
     except Exception as e:
+        logger.error(f"Error enviando correo a {email}: {e}")
         cache.delete(f'{RESET_CACHE_PREFIX}{email}')
-        return Response({'error': 'Error al enviar el correo. Intenta de nuevo más tarde.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({'error': f'Error al enviar el correo: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     return Response({'message': 'Si el correo está registrado, recibirás un código de verificación.'}, status=status.HTTP_200_OK)
 
@@ -240,8 +237,13 @@ def gestion_usuario_individual(request, pk):
     elif request.method == 'DELETE':
         if user == request.user:
             return Response({'error': 'No puedes eliminar tu propio usuario.'}, status=status.HTTP_400_BAD_REQUEST)
-        user.delete()
-        return Response({'message': 'Usuario eliminado.'}, status=status.HTTP_200_OK)
+
+        user.is_active = False
+        user.save()
+        return Response(
+            {'message': f'Usuario {user.username} desactivado correctamente.'},
+            status=status.HTTP_200_OK
+        )
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

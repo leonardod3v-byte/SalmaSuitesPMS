@@ -40,10 +40,25 @@ class LoginSerializer(serializers.Serializer):
 
     def validate(self, data):
         from django.contrib.auth import authenticate
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+
+        # Buscar el usuario primero
+        try:
+            user_obj = User.objects.get(username=data['username'])
+        except User.DoesNotExist:
+            raise serializers.ValidationError('Usuario o contraseña incorrectos.')
+
+        # Si existe pero está inactivo
+        if not user_obj.is_active:
+            raise serializers.ValidationError('Tu cuenta ha sido desactivada. Contacta al administrador.')
+
+        # Autenticar
         user = authenticate(**data)
-        if user and user.is_active:
+        if user:
             return user
-        raise serializers.ValidationError('Credenciales incorrectas.')
+
+        raise serializers.ValidationError('Usuario o contraseña incorrectos.')
 
 class CambioPasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(write_only=True)

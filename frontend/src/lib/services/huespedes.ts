@@ -20,7 +20,7 @@ export function createHuesped(data: HuespedCreate): Promise<Huesped> {
 export function updateHuesped(
     id: number,
     data: Partial<HuespedCreate>,
-    ): Promise<Huesped> {
+): Promise<Huesped> {
     return apiFetch<Huesped>(`/huespedes/${id}/`, {
         method: "PATCH",
         body: JSON.stringify(data),
@@ -29,11 +29,30 @@ export function updateHuesped(
 
 export function checkDisponibilidad(
     id: number,
-    ): Promise<{ disponible: boolean }> {
+): Promise<{ disponible: boolean }> {
     return apiFetch<{ disponible: boolean }>(`/huespedes/${id}/disponibilidad/`);
 }
 
-export function getExportUrl(): string {
+
+export async function exportarHuespedes(): Promise<void> {
     const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api';
-    return `${API_URL}/huespedes/exportar/`;
+
+    const res = await fetch(`${API_URL}/huespedes/exportar/`, {
+        method: 'GET',
+        credentials: 'include',
+    });
+
+    if (!res.ok) {
+        throw new Error('Error al exportar los huéspedes.');
+    }
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `huespedes_${new Date().toISOString().split('T')[0]}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
 }

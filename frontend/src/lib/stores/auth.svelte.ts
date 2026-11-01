@@ -19,23 +19,23 @@ export const auth = {
         loading = false;
     },
 
-async login(username: string, password: string): Promise<User> {
-    loading = true;
-    try {
-        const data = await apiFetch<{ token: string; user: User }>('/auth/login/', {
-            method: 'POST',
-            body: JSON.stringify({ username, password }),
-        } as any);
+    async login(username: string, password: string): Promise<User> {
+        loading = true;
+        try {
+            const data = await apiFetch<{ token: string; user: User }>('/auth/login/', {
+                method: 'POST',
+                body: JSON.stringify({ username, password }),
+            } as any);
 
-        user = data.user;
-        if (typeof window !== 'undefined') {
-            localStorage.setItem('auth_token', data.token);
+            user = data.user;
+            if (typeof window !== 'undefined') {
+                localStorage.setItem('auth_token', data.token);
+            }
+            return data.user;
+        } finally {
+            loading = false;
         }
-        return data.user;
-    } finally {
-        loading = false;
-    }
-},
+    },
 
     async logout() {
         try {

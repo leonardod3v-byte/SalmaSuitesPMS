@@ -145,7 +145,7 @@
 
     <footer class="mt-8 text-center space-y-2">
       <p class="text-[10px] text-hotel-text-tertiary font-medium uppercase tracking-widest">
-        © 2026 Salma Suite VIP · Solo personal autorizado.
+        © 2026 Hotel Salma Suites VIP, C.A · Solo personal autorizado.
       </p>
     </footer>
   </div>

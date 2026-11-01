@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'corsheaders',
+    'anymail',
 
     'apps.usuarios',
     'apps.huespedes',
@@ -142,13 +143,16 @@ CSRF_COOKIE_SECURE = True
 AUTH_TOKEN_COOKIE_NAME = 'auth_token'
 AUTH_TOKEN_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'Sistema PMS Hotel Salma Suite VIP <noreply@salmasuite.com>')
+EMAIL_BACKEND = "anymail.backends.mailjet.EmailBackend"
+ANYMAIL = {
+    "MAILJET_API_KEY": os.environ.get("MAILJET_API_KEY", ""),
+    "MAILJET_SECRET_KEY": os.environ.get("MAILJET_SECRET_KEY", ""),
+}
+DEFAULT_FROM_EMAIL = os.environ.get(
+    "DEFAULT_FROM_EMAIL",
+    "SalmaSuitesPMS - Hotel Salma Suites VIP, C.A <leonardonoa803@gmail.com>"
+)
+EMAIL_TIMEOUT = 10
 
 CACHES = {
     'default': {
