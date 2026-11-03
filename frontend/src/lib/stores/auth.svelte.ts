@@ -18,6 +18,22 @@ export const auth = {
         loading = false;
     },
 
+    async hydrate(): Promise<void> {
+        if (user) return;
+
+        if (typeof window !== 'undefined') {
+            const token = localStorage.getItem('auth_token');
+            if (token) {
+                try {
+                    const profile = await apiFetch<User>('/auth/profile/');
+                    user = profile;
+                } catch {
+                    localStorage.removeItem('auth_token');
+                }
+            }
+        }
+    },
+
     async login(username: string, password: string): Promise<User> {
         loading = true;
         try {

@@ -2,46 +2,58 @@
   import '../app.css';
   import { onMount } from 'svelte';
   import { page as pageStore } from '$app/stores';
-  import { goto } from '$app/navigation';
+  import { goto, afterNavigate } from '$app/navigation';
   import Sidebar from '$components/ui/Sidebar.svelte';
   import Header from '$components/ui/Header.svelte';
   import Toast from '$components/ui/Toast.svelte';
   import { auth, type User } from '$stores/auth.svelte';
   import { apiFetch } from '$lib/services/api';
 
-  let { children } = $props();
+  let { children, data } = $props();
+
+  const PUBLIC_ROUTES = ['/login', '/recuperar'];
 
   let isPublicPage = $derived(
-    $pageStore.url.pathname === '/login' ||
-    $pageStore.url.pathname === '/recuperar' ||
-    $pageStore.url.pathname === '/'
+    PUBLIC_ROUTES.some(r => $pageStore.url.pathname.startsWith(r))
   );
 
-  onMount(async () => {
+  async function verificarSesion() {
     if (isPublicPage) {
-      auth.init(null);
-      return;
-    }
-
-    const tokenLocal = localStorage.getItem('auth_token');
-    if (!tokenLocal) {
-      auth.init(null);
-      goto('/login', { replaceState: true });
+      if (!auth.user) auth.init(null);
       return;
     }
 
     if (auth.user) return;
 
+    const tokenLocal = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+
+    if (!tokenLocal) {
+      auth.init(null);
+      goto(`/login?redirectTo=${encodeURIComponent($pageStore.url.pathname)}`, { replaceState: true });
+      return;
+    }
+
     try {
       const user = await apiFetch<User>('/auth/profile/');
       auth.init(user);
-    } catch (err: any) {
-      if (err.message?.includes('Sesión expirada') || err.message?.includes('401')) {
+    } catch {
+      if (typeof window !== 'undefined') {
         localStorage.removeItem('auth_token');
-        auth.init(null);
-        goto('/login', { replaceState: true });
       }
+      auth.init(null);
+      goto(`/login?redirectTo=${encodeURIComponent($pageStore.url.pathname)}`, { replaceState: true });
     }
+  }
+
+  onMount(() => {
+    if (data?.user && !auth.user) {
+      auth.init(data.user);
+    }
+    verificarSesion();
+  });
+
+  afterNavigate(() => {
+    verificarSesion();
   });
 </script>
 
@@ -53,21 +65,15 @@
   </main>
 {:else}
   <div class="flex min-h-screen bg-hotel-bg text-hotel-text-primary overflow-hidden">
-
-    <!-- Sidebar (fijo o colapsable) -->
     <div class="z-50 shrink-0">
       <Sidebar />
     </div>
 
-    <!-- Contenedor principal (se ajusta al espacio restante) -->
     <div class="flex-1 flex flex-col min-w-0 relative">
-
-      <!-- Header -->
       <div class="lg:ml-18 transition-all duration-300 z-40">
         <Header />
       </div>
 
-      <!-- Contenido de la página -->
       <main class="flex-1 min-w-0 overflow-y-auto overflow-x-hidden">
         <div class="p-3 sm:p-4 lg:p-6 lg:ml-18 mt-12 lg:mt-2 transition-all duration-300">
           <div class="max-w-full mx-auto">
