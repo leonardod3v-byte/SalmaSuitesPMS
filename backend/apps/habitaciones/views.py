@@ -85,6 +85,6 @@ def verificar_disponibilidad(request, pk):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def listar_disponibles_view(request):
-    habitaciones = services.listar_disponibles()
+    habitaciones = Habitacion.objects.filter(estado='Disponible').order_by('piso', 'numero')
     serializer = HabitacionSerializer(habitaciones, many=True)
     return Response(serializer.data)

@@ -38,7 +38,9 @@ def login_view(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     user = serializer.validated_data
 
-    update_last_login(None, user)
+    from django.utils import timezone
+    user.last_login = timezone.now()
+    user.save(update_fields=['last_login'])
 
     token, _ = Token.objects.get_or_create(user=user)
 

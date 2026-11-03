@@ -9,7 +9,7 @@
     } = $props();
 
     function verDetalle(id: number) {
-        goto(`/empresas?id=${id}`);
+        goto(`/empresas/${id}`);
     }
 </script>
 

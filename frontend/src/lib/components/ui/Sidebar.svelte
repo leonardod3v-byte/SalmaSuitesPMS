@@ -20,7 +20,7 @@
   const logout = () => auth.logout();
 
   type MenuKey = 'dashboard' | 'habitaciones' | 'huespedes' | 'empresas' | 'reservaciones' | 'inventario' | 'reportes' | 'user' | 'config';
-  const menuItems: { key: MenuKey; label: string; href: string; adminOnly?: boolean }[] = [
+  const menuPrincipal: { key: MenuKey; label: string; href: string }[] = [
     { key: 'dashboard',   label: 'Dashboard',    href: '/dashboard' },
     { key: 'habitaciones', label: 'Habitaciones', href: '/habitaciones' },
     { key: 'huespedes',    label: 'Huéspedes',    href: '/huespedes' },
@@ -28,11 +28,18 @@
     { key: 'reservaciones', label: 'Reservas', href: '/reservaciones' },
     { key: 'inventario',   label: 'Inventario',   href: '/inventario' },
     { key: 'reportes',     label: 'Reportes',     href: '/reportes' },
-    { key: 'user',     label: 'Usuarios',     href: '/usuarios', adminOnly: true },
-    { key: 'config',       label: 'Configuración', href: '/configuracion', adminOnly: true },
   ];
+  const menuAdmin: { key: MenuKey; label: string; href: string }[] = [
+    { key: 'user',     label: 'Usuarios',     href: '/usuarios' },
+    { key: 'config',       label: 'Configuración', href: '/configuracion' },
+  ];
+
+  function isActive(href: string): boolean {
+    return $page.url.pathname === href || $page.url.pathname.startsWith(href + '/');
+  }
 </script>
 
+<!-- Botón móvil -->
 <button
   type="button"
   onclick={() => (mobileOpen = !mobileOpen)}
@@ -58,31 +65,39 @@
 >
   <div class="flex flex-col h-full w-full overflow-x-hidden">
 
+    <!-- Logo -->
     <div class="h-16 flex items-center shrink-0 border-b border-hotel-border px-5">
-      <a href="/dashboard" data-sveltekit-prefetch class="flex items-center gap-3 w-full">
-        <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 overflow-hidden">
+      <a href="/dashboard" data-sveltekit-prefetch class="flex items-center gap-3 w-full group">
+        <div class="w-10 h-10 flex items-center justify-center shrink-0 overflow-hidden transition-colors">
           <img src="/favicon.svg" alt="Logo SalmaSuites" class="w-full h-full object-contain" />
         </div>
         {#if !collapsed}
           <span transition:fade class="ml-3 font-display font-bold italic text-hotel-text-primary">
-            SalmaSuitesPMS
+            SalmaSuites<span class="text-hotel-gold">PMS</span>
           </span>
         {/if}
       </a>
     </div>
 
+    <!-- Navegación principal -->
     <nav class="flex-1 p-3 space-y-1 overflow-y-auto overflow-x-hidden select-none custom-scrollbar">
-      {#each menuItems as item (item.key)}
-        {#if !item.adminOnly || (auth.user?.role === 'admin')}
+      {#each menuPrincipal as item (item.key)}
+        {@const active = isActive(item.href)}
+        <div class="relative group/item">
           <a
             href={item.href}
             data-sveltekit-prefetch
             onclick={() => (mobileOpen = false)}
-            class="flex items-center gap-4 px-3 py-3 rounded-xl transition-all duration-200 group relative
-              {$page.url.pathname === item.href
-                ? 'bg-hotel-gold/10 text-hotel-gold border-hotel-gold/20'
-                : 'text-hotel-text-secondary hover:bg-hotel-surface hover:text-hotel-text-primary border-transparent'} border"
+            class="flex items-center gap-4 px-3 py-2.5 rounded-xl transition-all duration-200 relative
+              {active
+                ? 'bg-hotel-gold/10 text-hotel-gold'
+                : 'text-hotel-text-secondary hover:bg-hotel-surface hover:text-hotel-text-primary'}"
           >
+            <!-- Indicador activo lateral -->
+            {#if active}
+              <span class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full bg-hotel-gold"></span>
+            {/if}
+
             <div class="shrink-0 w-6 h-6 flex items-center justify-center">
               <Icon name={item.key} class="w-5 h-5" />
             </div>
@@ -92,15 +107,60 @@
               </span>
             {/if}
           </a>
-        {/if}
+
+          <!-- Tooltip cuando está colapsado -->
+          {#if collapsed}
+            <div class="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 rounded-lg bg-hotel-surface border border-hotel-border text-hotel-text-primary text-xs font-bold whitespace-nowrap opacity-0 group-hover/item:opacity-100 pointer-events-none transition-opacity z-100 shadow-xl">
+              {item.label}
+            </div>
+          {/if}
+        </div>
       {/each}
+
+      <!-- Divisor y menú admin -->
+      {#if auth.user?.role === 'admin'}
+        <div class="my-3 border-t border-hotel-border/50"></div>
+        {#each menuAdmin as item (item.key)}
+          {@const active = isActive(item.href)}
+          <div class="relative group/item">
+            <a
+              href={item.href}
+              data-sveltekit-prefetch
+              onclick={() => (mobileOpen = false)}
+              class="flex items-center gap-4 px-3 py-2.5 rounded-xl transition-all duration-200 relative
+                {active
+                  ? 'bg-hotel-gold/10 text-hotel-gold'
+                  : 'text-hotel-text-secondary hover:bg-hotel-surface hover:text-hotel-text-primary'}"
+            >
+              {#if active}
+                <span class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full bg-hotel-gold"></span>
+              {/if}
+              <div class="shrink-0 w-6 h-6 flex items-center justify-center">
+                <Icon name={item.key} class="w-5 h-5" />
+              </div>
+              {#if !collapsed}
+                <span class="font-medium text-sm truncate whitespace-nowrap overflow-hidden">
+                  {item.label}
+                </span>
+              {/if}
+            </a>
+
+            {#if collapsed}
+              <div class="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 rounded-lg bg-hotel-surface border border-hotel-border text-hotel-text-primary text-xs font-bold whitespace-nowrap opacity-0 group-hover/item:opacity-100 pointer-events-none transition-opacity z-100 shadow-xl">
+                {item.label}
+              </div>
+            {/if}
+          </div>
+        {/each}
+      {/if}
     </nav>
 
+    <!-- Logout -->
     <div class="p-3 border-t border-hotel-border shrink-0 bg-hotel-bg">
       <button
         type="button"
         onclick={logout}
-        class="flex items-center gap-4 px-3 py-3 rounded-xl transition-all w-full text-hotel-error hover:bg-hotel-error/10"
+        class="flex items-center gap-4 px-3 py-2.5 rounded-xl transition-all w-full text-hotel-error hover:bg-hotel-error/10"
       >
         <div class="shrink-0 w-6 h-6 flex items-center justify-center">
           <Icon name="logout" class="w-5 h-5" />
@@ -112,6 +172,7 @@
     </div>
   </div>
 
+  <!-- Botón colapsar -->
   <button
     type="button"
     onclick={toggle}

@@ -29,11 +29,11 @@
         goto(`/habitaciones/${habitacion.id}`);
     }
 
-    async function marcarLimpia(e: MouseEvent) {
+    async function marcarDisponible(e: MouseEvent) {
         e.stopPropagation();
         try {
-            await cambiarEstadoHabitacion(habitacion.id, 'Limpia');
-            toast.success('Habitación marcada como Limpia.');
+            await cambiarEstadoHabitacion(habitacion.id, 'Disponible');
+            toast.success('Habitación marcada como Disponible.');
             onchange();
         } catch (err: any) {
             toast.error(err.message || 'Error al cambiar estado.');
@@ -109,12 +109,12 @@
 
         <!-- Acciones -->
         <div class="flex gap-2 pt-3 border-t border-hotel-border/60">
-            {#if habitacion.estado === 'Sucia'}
-                <button onclick={marcarLimpia} class="flex-1 text-[10px] font-bold uppercase tracking-wider px-3 py-2 rounded-lg bg-hotel-success/10 text-hotel-success-light border border-hotel-success/20 hover:bg-hotel-success/20 transition-all">
-                    Marcar Limpia
+            {#if habitacion.estado === 'Limpieza'}
+                <button onclick={marcarDisponible} class="flex-1 text-[10px] font-bold uppercase tracking-wider px-3 py-2 rounded-lg bg-hotel-success/10 text-hotel-success-light border border-hotel-success/20 hover:bg-hotel-success/20 transition-all">
+                    Marcar Disponible
                 </button>
-            {:else if habitacion.estado === 'Limpia'}
-                <button onclick={enviarMantenimiento} class="flex-1 text-[10px] font-bold uppercase tracking-wider px-3 py-2 rounded-lg bg-hotel-error/10 text-hotel-error-light border border-hotel-error/20 hover:bg-hotel-error/20 transition-all">
+            {:else if habitacion.estado === 'Disponible'}
+                <button onclick={enviarMantenimiento} class="flex-1 text-[10px] font-bold uppercase tracking-wider px-3 py-2 rounded-lg bg-orange-500/10 text-orange-400 border border-orange-500/20 hover:bg-orange-500/20 transition-all">
                     Mantenimiento
                 </button>
             {/if}

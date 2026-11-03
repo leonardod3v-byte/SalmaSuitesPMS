@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 class Habitacion(models.Model):
     CATEGORIA_TIPO = [
@@ -19,12 +20,25 @@ class Habitacion(models.Model):
     ]
 
     numero = models.CharField(max_length=10, unique=True)
-    piso = models.PositiveSmallIntegerField()
-    cantidad_camas = models.PositiveSmallIntegerField()
-    capacidad_maxima = models.PositiveSmallIntegerField()
+    piso = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(20)]
+    )
+    cantidad_camas = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(10)]
+    )
+    capacidad_maxima = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(10)]
+    )
     categoria_tipo = models.CharField(max_length=25, choices=CATEGORIA_TIPO)
-    precio_por_noche = models.DecimalField(max_digits=10, decimal_places=2)
-    precio_empresa = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Si se deja vacío, se usará el precio normal")
+    precio_por_noche = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        validators=[MinValueValidator(0)]
+    )
+    precio_empresa = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        validators=[MinValueValidator(0)],
+        help_text="Si se deja vacío, se usará el precio normal"
+    )
 
     estado = models.CharField(max_length=15, choices=ESTADO, default='Disponible')
     notas = models.TextField(blank=True)
@@ -37,3 +51,11 @@ class Habitacion(models.Model):
 
     def __str__(self):
         return f"Habitación {self.numero} - {self.categoria_tipo}"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.cantidad_camas and self.capacidad_maxima:
+            if self.capacidad_maxima < self.cantidad_camas:
+                raise ValidationError({
+                    'capacidad_maxima': 'La capacidad máxima no puede ser menor que la cantidad de camas.'
+                })

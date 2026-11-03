@@ -1,6 +1,5 @@
 import { apiFetch } from '$lib/services/api';
-import { goto } from '$app/navigation';
-import { invalidateAll } from '$app/navigation';
+import { goto, invalidateAll } from '$app/navigation';
 
 export interface User {
     id: number;
@@ -41,13 +40,16 @@ export const auth = {
         try {
             await apiFetch('/auth/logout/', { method: 'POST' });
         } catch {
-            // Ignorar errores de red al cerrar sesión
         }
+
         user = null;
+
         if (typeof window !== 'undefined') {
             localStorage.removeItem('auth_token');
-            window.location.replace('/login');
         }
+
+        await invalidateAll();
+        await goto('/login', { replaceState: true });
     },
 
     get user() { return user; },

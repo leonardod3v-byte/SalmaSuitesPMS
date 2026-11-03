@@ -86,6 +86,18 @@ def detalle_reservacion(request, pk):
 @permission_classes([IsAuthenticated])
 def checkin_reservacion(request, pk):
     try:
+        acompanantes_extra = request.data.get('acompanantes_extra', [])
+        if acompanantes_extra:
+            reserva = get_object_or_404(Reservacion, pk=pk)
+            from .models import ReservacionHuespedes
+            from apps.huespedes.models import Huesped
+            for acomp_id in acompanantes_extra:
+                h = get_object_or_404(Huesped, pk=acomp_id)
+                ReservacionHuespedes.objects.get_or_create(
+                    id_reservacion=reserva,
+                    id_huesped=h,
+                    defaults={'rol': 'Acompañante'}
+                )
         reserva = services.realizar_checkin(pk, request.user)
         return Response(ReservacionSerializer(reserva).data)
     except ValidationError as e:

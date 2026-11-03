@@ -8,21 +8,6 @@
         huespedes: Huesped[];
     } = $props();
 
-    const coloresTipo: Record<string, string> = {
-        'Particular': '#9E9E9E',
-        'Empresario': '#607D8B',
-        'Turista': '#FF5722',
-        'Militar': '#4CAF50',
-        'Político': '#2196F3',
-        'Artista': '#FF9800',
-        'Deportista': '#E91E63',
-        'Diplomático': '#3F51B5',
-        'Médico': '#00BCD4',
-        'Religioso': '#FFEB3B',
-        'Ejecutivo de Ventas': '#795548',
-        'Comerciante': '#8BC34A',
-    };
-
     function verDetalle(id: number) {
         goto(`/huespedes/${id}`);
     }
@@ -33,7 +18,7 @@
         <thead>
             <tr class="border-b border-hotel-border text-[10px] uppercase tracking-widest text-hotel-text-tertiary text-left">
                 <th class="p-3 font-bold">Huésped</th>
-                <th class="p-3 font-bold hidden md:table-cell">Tipo</th>
+                <th class="p-3 font-bold hidden md:table-cell">Ocupación</th>
                 <th class="p-3 font-bold hidden lg:table-cell">Contacto</th>
                 <th class="p-3 font-bold">Categoría</th>
                 <th class="p-3 font-bold hidden xl:table-cell">Crédito</th>
@@ -46,7 +31,7 @@
                     <td class="p-3">
                         <div class="flex items-center gap-3">
                             <div class="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
-                                style="background-color: {coloresTipo[h.tipo_cliente_profesion] || '#9E9E9E'}15; color: {coloresTipo[h.tipo_cliente_profesion] || '#9E9E9E'}">
+                                style="background-color: {(h.ocupacion_detalle?.color || '#9E9E9E')}15; color: {h.ocupacion_detalle?.color || '#9E9E9E'}">
                                 {h.nombres.charAt(0)}{h.apellidos.charAt(0)}
                             </div>
                             <div>
@@ -56,11 +41,15 @@
                         </div>
                     </td>
                     <td class="p-3 hidden md:table-cell">
-                        <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-bold"
-                            style="background-color: {coloresTipo[h.tipo_cliente_profesion] || '#9E9E9E'}15; color: {coloresTipo[h.tipo_cliente_profesion] || '#9E9E9E'}">
-                            <span class="w-1.5 h-1.5 rounded-full" style="background-color: {coloresTipo[h.tipo_cliente_profesion] || '#9E9E9E'}"></span>
-                            {h.tipo_cliente_profesion}
-                        </span>
+                        {#if h.ocupacion_detalle}
+                            <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-bold"
+                                style="background-color: {h.ocupacion_detalle.color}15; color: {h.ocupacion_detalle.color}">
+                                <span class="w-1.5 h-1.5 rounded-full" style="background-color: {h.ocupacion_detalle.color}"></span>
+                                {h.ocupacion_detalle.nombre}
+                            </span>
+                        {:else}
+                            <span class="text-[10px] text-hotel-text-tertiary">—</span>
+                        {/if}
                     </td>
                     <td class="p-3 hidden lg:table-cell">
                         <div class="text-hotel-text-secondary text-xs space-y-0.5">

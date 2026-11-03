@@ -14,7 +14,7 @@
         'EnCurso': 'bg-hotel-gold/10 text-hotel-gold-light border-hotel-gold/30',
         'Finalizada': 'bg-hotel-success/10 text-hotel-success-light border-hotel-success/30',
         'Cancelada': 'bg-hotel-error/10 text-hotel-error-light border-hotel-error/30',
-        'NoShow': 'bg-hotel-error/10 text-hotel-error-light border-hotel-error/30',
+        'NoShow': 'bg-hotel-text-tertiary/10 text-hotel-text-tertiary border-hotel-text-tertiary/30',
     };
 
     function formatFecha(fecha: string) {
@@ -25,6 +25,8 @@
     function verDetalle() {
         goto(`/reservaciones/${reservacion.id}`);
     }
+
+    let acompanantes = $derived(reservacion.acompanantes || []);
 </script>
 
 <div
@@ -55,7 +57,7 @@
             {/if}
         </div>
         <span class="px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border {estadoClases[reservacion.estado] || ''}">
-            {reservacion.estado}
+            {reservacion.estado === 'EnCurso' ? 'En Curso' : reservacion.estado}
         </span>
     </div>
 
@@ -72,9 +74,37 @@
             </div>
             <p class="text-[10px] text-hotel-text-tertiary mt-1 uppercase tracking-wider">
                 {reservacion.numero_noches} {reservacion.numero_noches === 1 ? 'noche' : 'noches'}
+                {#if acompanantes.length > 0}
+                    · {1 + acompanantes.length} pers.
+                {/if}
             </p>
         </div>
     </div>
+
+    <!-- Acompañantes -->
+    {#if acompanantes.length > 0}
+        <div class="mb-3 pt-3 border-t border-hotel-border/50">
+            <p class="text-[9px] uppercase tracking-wider text-hotel-text-tertiary mb-2">
+                Acompañantes ({acompanantes.length})
+            </p>
+            <div class="flex flex-wrap gap-1.5">
+                {#each acompanantes as a}
+                    <div
+                        class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-hotel-bg/60 border border-hotel-border"
+                        title="{a.huesped_detalle?.nombres} {a.huesped_detalle?.apellidos} · {a.huesped_detalle?.tipo_documento}-{a.huesped_detalle?.numero_documento}"
+                    >
+                        <div
+                            class="w-1.5 h-1.5 rounded-full"
+                            style="background-color: {a.huesped_detalle?.ocupacion_color || '#9E9E9E'}"
+                        ></div>
+                        <span class="text-[10px] font-bold text-hotel-text-secondary truncate max-w-25">
+                            {a.huesped_detalle?.nombres}
+                        </span>
+                    </div>
+                {/each}
+            </div>
+        </div>
+    {/if}
 
     <!-- Footer: Total y Saldo -->
     <div class="mt-auto pt-3 border-t border-hotel-border/50 flex justify-between items-end">

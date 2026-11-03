@@ -6,11 +6,11 @@
     } = $props();
 
     const clases: Record<string, string> = {
-        'Disponible': 'bg-hotel-success/80 border-hotel-success text-white',
-        'Ocupada': 'bg-hotel-gold/80 border-hotel-gold text-hotel-bg',
-        'Limpieza': 'bg-hotel-info/80 border-hotel-info-light text-white',
-        'Mantenimiento': 'bg-hotel-error/80 border-hotel-error text-white',
-        'Obra': 'bg-hotel-error/80 border-hotel-error text-white',
+        'Disponible': 'bg-hotel-success/85 border-hotel-success text-white',
+        'Ocupada': 'bg-hotel-gold/85 border-hotel-gold text-hotel-bg',
+        'Limpieza': 'bg-hotel-info/85 border-hotel-info-light text-white',
+        'Mantenimiento': 'bg-orange-500/85 border-orange-500 text-white',
+        'Obra': 'bg-hotel-error/85 border-hotel-error text-white',
     };
 
     const dots: Record<string, string> = {

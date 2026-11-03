@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
+    import { goto } from '$app/navigation';
     import PageHeader from '$components/ui/PageHeader.svelte';
     import Button from '$components/ui/Button.svelte';
     import Modal from '$components/ui/Modal.svelte';
@@ -33,7 +34,7 @@
         { value: 'Disponible', label: 'Disponibles', color: 'bg-hotel-success' },
         { value: 'Ocupada', label: 'Ocupadas', color: 'bg-hotel-gold' },
         { value: 'Limpieza', label: 'Limpieza', color: 'bg-hotel-info-light' },
-        { value: 'Mantenimiento', label: 'Mantenimiento', color: 'bg-hotel-error' },
+        { value: 'Mantenimiento', label: 'Mantenimiento', color: 'bg-orange-500' },
         { value: 'Obra', label: 'Obra', color: 'bg-hotel-error' },
     ];
 
@@ -87,7 +88,7 @@
                     onclick={() => filtroEstado = filtroEstado === f.value ? null : f.value}
                     class="flex-1 lg:flex-none inline-flex items-center justify-center gap-1.5 px-3 h-8 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all duration-300
                     {filtroEstado === f.value
-                        ? 'border-' + f.value.toLowerCase() + '/50 text-' + f.value.toLowerCase() + '-light'
+                        ? 'border-hotel-gold/50 text-hotel-gold'
                         : 'bg-hotel-bg border-hotel-border text-hotel-text-tertiary hover:border-hotel-gold/50'}"
                 >
                     <span class="w-2 h-2 rounded-full {f.color}"></span>

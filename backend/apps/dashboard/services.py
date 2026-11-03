@@ -9,6 +9,7 @@ from apps.reservaciones.models import Pago
 from apps.huespedes.models import Huesped
 from apps.inventario.services import productos_bajos
 
+
 def obtener_kpis():
     hoy = date.today()
 
@@ -19,7 +20,7 @@ def obtener_kpis():
     ocupadas = Habitacion.objects.filter(estado='Ocupada').count()
     ocupacion_pct = round((ocupadas / disponibles) * 100, 1) if disponibles > 0 else 0
 
-    # Check‑in hoy
+    # Check-in hoy
     checkins_hoy = Reservacion.objects.filter(fecha_checkin_real__date=hoy, estado='EnCurso').count()
 
     # Flujo de caja hoy
@@ -29,28 +30,24 @@ def obtener_kpis():
     total_pago_movil = pagos_hoy.filter(metodo_pago='PagoMovil').aggregate(t=Sum('monto'))['t'] or Decimal('0.00')
     flujo_total = total_efectivo + total_tarjeta + total_pago_movil
 
-    # Clientes VIP alojados
-    vip_alojados = Huesped.objects.filter(
-        categoria='VIP',
-        reservaciones_titular__estado='EnCurso'
-    ).distinct().count()
-    # También contar acompañantes VIP
-    vip_acompanantes = Huesped.objects.filter(
-        categoria='VIP',
-        reservacionhuespedes__rol='Acompañante',
-        reservacionhuespedes__id_reservacion__estado='EnCurso'
-    ).distinct().count()
-    # Para no duplicar si un VIP es titular y también acompañante en otra, usamos union de ids
-    ids_titulares = Huesped.objects.filter(
-        categoria='VIP',
-        reservaciones_titular__estado='EnCurso'
-    ).values_list('id', flat=True)
-    ids_acompanantes = Huesped.objects.filter(
-        categoria='VIP',
-        reservacionhuespedes__rol='Acompañante',
-        reservacionhuespedes__id_reservacion__estado='EnCurso'
-    ).values_list('id', flat=True)
-    total_vip = len(set(ids_titulares) | set(ids_acompanantes))
+    from apps.reservaciones.models import ReservacionHuespedes
+
+    vip_ids = Reservacion.objects.filter(
+        estado='EnCurso'
+    ).values_list('id_huesped_titular_id', flat=True).distinct()
+
+    acompanantes_ids = ReservacionHuespedes.objects.filter(
+        id_reservacion__estado='EnCurso',
+        rol='Acompañante'
+    ).values_list('id_huesped_id', flat=True).distinct()
+
+    todos_ids = set(vip_ids) | set(acompanantes_ids)
+    total_vip = Huesped.objects.filter(id__in=todos_ids, categoria='VIP').count()
+
+    try:
+        productos_bajos_count = productos_bajos()
+    except Exception:
+        productos_bajos_count = 0
 
     return {
         'ocupacion': {
@@ -68,18 +65,12 @@ def obtener_kpis():
             'pago_movil': str(total_pago_movil),
         },
         'vip_alojados': total_vip,
-        'productos_bajos': productos_bajos(),
+        'productos_bajos': productos_bajos_count,
     }
 
 
 def obtener_ocupacion_semanal():
-    """
-    Calcula la ocupación para cada día de la semana actual (lunes a domingo).
-    Para días pasados y hoy: usa intersección de reservas activas.
-    Para días futuros: proyección con reservas confirmadas.
-    """
     hoy = date.today()
-    # Lunes de esta semana
     lunes = hoy - timedelta(days=hoy.weekday())
     domingo = lunes + timedelta(days=6)
 
@@ -91,20 +82,12 @@ def obtener_ocupacion_semanal():
     for i in range(7):
         dia = lunes + timedelta(days=i)
         if dia <= hoy:
-            # Contar habitaciones ocupadas ese día (reservas que traslapaban)
             ocupadas = Habitacion.objects.filter(
-                Q(reservaciones__estado__in=['Confirmada', 'EnCurso', 'Finalizada']) |
-                Q(reservaciones__estado='Cancelada', pk__isnull=True)  # dummy
-            ).filter(
                 reservaciones__fecha_entrada__lte=dia,
                 reservaciones__fecha_salida__gte=dia + timedelta(days=1),
                 reservaciones__estado__in=['EnCurso', 'Finalizada', 'Confirmada']
-            ).filter(
-                # Excluir canceladas y no-show
-                ~Q(reservaciones__estado__in=['Cancelada', 'NoShow'])
             ).distinct().count()
         else:
-            # Días futuros: proyectar con confirmadas
             ocupadas = Habitacion.objects.filter(
                 reservaciones__fecha_entrada__lte=dia,
                 reservaciones__fecha_salida__gte=dia + timedelta(days=1),
@@ -120,16 +103,11 @@ def obtener_ocupacion_semanal():
             'porcentaje': pct,
         })
 
-    # Promedio semanal
     promedio = round(sum(r['porcentaje'] for r in resultados) / 7, 1)
     return {'semana': lunes.isoformat(), 'dias': resultados, 'promedio': promedio}
 
 
 def proximos_checkouts():
-    """
-    Reservas con estado EnCurso y fecha_salida = hoy.
-    Devuelve la cantidad y la lista resumida.
-    """
     hoy = date.today()
     reservas = Reservacion.objects.filter(
         estado='EnCurso',

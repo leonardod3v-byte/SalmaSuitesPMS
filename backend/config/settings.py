@@ -150,7 +150,7 @@ ANYMAIL = {
 }
 DEFAULT_FROM_EMAIL = os.environ.get(
     "DEFAULT_FROM_EMAIL",
-    "SalmaSuitesPMS - Hotel Salma Suites VIP, C.A <leonardonoa803@gmail.com>"
+    "SalmaSuitesPMS - Hotel Salma Suites VIP C.A <leonardonoa803@gmail.com>"
 )
 EMAIL_TIMEOUT = 10
 

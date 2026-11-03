@@ -5,9 +5,8 @@
     import InputHotel from '$components/ui/Input.svelte';
     import Select from '$components/ui/Select.svelte';
     import Button from '$components/ui/Button.svelte';
-    import { createHabitacion, updateHabitacion, fetchHabitacion } from '$lib/services/habitaciones';
+    import { fetchHabitacion } from '$lib/services/habitaciones';
     import type { Habitacion } from '$lib/types/habitacion';
-    import { apiFetch } from '$lib/services/api';
 
     let {
         id = null,
@@ -31,6 +30,7 @@
     let notas = $state('');
     let imagenFile = $state<File | null>(null);
     let imagenPreview = $state<string | null>(null);
+    let imagenActual = $state<string | null>(null);
 
     const tiposHabitacion = [
         { value: 'Uni-Familiar', label: 'Uni-Familiar' },
@@ -62,6 +62,7 @@
                 precio_empresa = data.precio_empresa ? Number(data.precio_empresa) : '';
                 estado = data.estado;
                 notas = data.notas || '';
+                imagenActual = data.imagen_url || null;
             } catch (e: any) {
                 error = e.message || 'Error al cargar habitación';
             }
@@ -71,6 +72,24 @@
     async function handleSubmit(e: Event) {
         e.preventDefault();
         error = '';
+
+        if (Number(capacidad_maxima) < Number(cantidad_camas)) {
+            error = 'La capacidad máxima no puede ser menor que la cantidad de camas.';
+            return;
+        }
+        if (Number(piso) < 1 || Number(piso) > 20) {
+            error = 'El piso debe estar entre 1 y 20.';
+            return;
+        }
+        if (Number(cantidad_camas) < 1 || Number(cantidad_camas) > 10) {
+            error = 'La cantidad de camas debe estar entre 1 y 10.';
+            return;
+        }
+        if (Number(capacidad_maxima) < 1 || Number(capacidad_maxima) > 10) {
+            error = 'La capacidad máxima debe estar entre 1 y 10.';
+            return;
+        }
+
         loading = true;
 
         const formData = new FormData();
@@ -80,18 +99,17 @@
         formData.append('capacidad_maxima', String(capacidad_maxima));
         formData.append('categoria_tipo', categoria_tipo);
         formData.append('precio_por_noche', String(precio_por_noche));
-
         formData.append('precio_empresa', precio_empresa !== '' ? String(precio_empresa) : '');
-
         formData.append('estado', estado);
         formData.append('notas', notas);
+
         if (imagenFile) {
             formData.append('imagen', imagenFile);
         }
 
         try {
             const url = id ? `/habitaciones/${id}/` : '/habitaciones/';
-            const method = id ? 'PUT' : 'POST';
+            const method = id ? 'PATCH' : 'POST';
 
             const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
             const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'}${url}`, {
@@ -103,7 +121,19 @@
 
             if (!res.ok) {
                 const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.error || errData.detail || 'Error al guardar');
+                let mensaje = 'Error al guardar la habitación';
+                if (errData.error) {
+                    mensaje = typeof errData.error === 'string' ? errData.error : JSON.stringify(errData.error);
+                } else if (errData.detail) {
+                    mensaje = errData.detail;
+                } else if (typeof errData === 'object') {
+                    const primerCampo = Object.keys(errData)[0];
+                    if (primerCampo) {
+                        const valor = errData[primerCampo];
+                        mensaje = Array.isArray(valor) ? valor[0] : String(valor);
+                    }
+                }
+                throw new Error(mensaje);
             }
 
             toast.success(id ? 'Habitación actualizada correctamente.' : 'Habitación registrada correctamente.');
@@ -134,51 +164,54 @@
         </div>
     {/if}
 
-    <div class="p-5 rounded-2xl bg-hotel-bg/40 border border-hotel-border space-y-4">
-        <p class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-gold">Identificación</p>
+    <div class="p-4 rounded-xl bg-hotel-bg/40 border border-hotel-border space-y-4">
+        <p class="text-[10px] font-black uppercase tracking-wider text-hotel-gold">Identificación</p>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div class="sm:col-span-1">
-                <InputHotel label="Número" bind:value={numero} required placeholder="Ej: 201" />
-            </div>
-            <div class="sm:col-span-1">
-                <InputHotel label="Piso" type="number" bind:value={piso} required />
-            </div>
-            <div class="sm:col-span-1">
-                <Select label="Estado" options={estadosHabitacion} bind:value={estado} required />
-            </div>
-        </div>
-
-        <div class="p-5 rounded-2xl bg-hotel-bg/40 border border-hotel-border space-y-4">
-            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-gold">Imagen</p>
-            <input
-                type="file"
-                accept="image/*"
-                onchange={handleImagen}
-                class="w-full text-sm text-hotel-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:uppercase file:tracking-wider file:bg-hotel-gold file:text-hotel-bg hover:file:bg-hotel-gold-light file:transition-colors file:cursor-pointer"
-            />
-            {#if imagenPreview}
-                <img src={imagenPreview} alt="Preview" class="w-full h-32 object-cover rounded-lg" />
-            {/if}
+            <InputHotel label="Número" bind:value={numero} required placeholder="Ej: 201" />
+            <InputHotel label="Piso" type="number" bind:value={piso} required min="1" max="20" />
+            <Select label="Estado" options={estadosHabitacion} bind:value={estado} required />
         </div>
     </div>
 
-    <div class="p-5 rounded-2xl bg-hotel-bg/40 border border-hotel-border space-y-4">
-        <p class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-gold">Configuración y Tarifas</p>
+    <div class="p-4 rounded-xl bg-hotel-bg/40 border border-hotel-border space-y-4">
+        <p class="text-[10px] font-black uppercase tracking-wider text-hotel-gold">Imagen</p>
+        {#if imagenActual && !imagenPreview}
+            <div class="space-y-2">
+                <p class="text-[10px] text-hotel-text-tertiary">Imagen actual:</p>
+                <img src={imagenActual} alt="Imagen actual" class="w-full h-32 object-cover rounded-lg border border-hotel-border" onerror={(e) => (e.target as HTMLImageElement).style.display = 'none'} />
+            </div>
+        {/if}
+        <input
+            type="file"
+            accept="image/*"
+            onchange={handleImagen}
+            class="w-full text-sm text-hotel-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:uppercase file:tracking-wider file:bg-hotel-gold file:text-hotel-bg hover:file:bg-hotel-gold-light file:transition-colors file:cursor-pointer"
+        />
+        {#if imagenPreview}
+            <div class="space-y-2">
+                <p class="text-[10px] text-hotel-text-tertiary">Nueva imagen:</p>
+                <img src={imagenPreview} alt="Preview" class="w-full h-32 object-cover rounded-lg border border-hotel-border" />
+            </div>
+        {/if}
+    </div>
+
+    <div class="p-4 rounded-xl bg-hotel-bg/40 border border-hotel-border space-y-4">
+        <p class="text-[10px] font-black uppercase tracking-wider text-hotel-gold">Configuración y Tarifas</p>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <InputHotel label="Cantidad de Camas" type="number" bind:value={cantidad_camas} required />
-            <InputHotel label="Capacidad Máxima" type="number" bind:value={capacidad_maxima} required />
+            <InputHotel label="Cantidad de Camas" type="number" bind:value={cantidad_camas} required min="1" max="10" />
+            <InputHotel label="Capacidad Máxima" type="number" bind:value={capacidad_maxima} required min="1" max="10" />
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select label="Categoría / Tipo" options={tiposHabitacion} bind:value={categoria_tipo} required />
-            <InputHotel label="Precio por Noche ($)" type="number" bind:value={precio_por_noche} required={!id} placeholder="Ej: 45.00" />
+            <InputHotel label="Precio por Noche ($)" type="number" bind:value={precio_por_noche} required={!id} placeholder="Ej: 45.00" min="0" step="0.01" />
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <InputHotel label="Precio Empresa ($)" type="number" bind:value={precio_empresa} placeholder="Opcional (tarifa corporativa)" />
+            <InputHotel label="Precio Empresa ($)" type="number" bind:value={precio_empresa} placeholder="Opcional (tarifa corporativa)" min="0" step="0.01" />
         </div>
     </div>
 
-    <div class="p-5 rounded-2xl bg-hotel-bg/40 border border-hotel-border space-y-4">
-        <p class="text-[10px] font-black uppercase tracking-[0.2em] text-hotel-gold">Notas</p>
+    <div class="p-4 rounded-xl bg-hotel-bg/40 border border-hotel-border space-y-4">
+        <p class="text-[10px] font-black uppercase tracking-wider text-hotel-gold">Notas</p>
         <InputHotel label="Observaciones" bind:value={notas} placeholder="Información adicional..." />
     </div>
 

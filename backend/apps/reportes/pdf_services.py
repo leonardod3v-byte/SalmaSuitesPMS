@@ -39,16 +39,18 @@ def _get_logo_path():
     return None
 
 
-# --- BLOQUE DE ENCABEZADO REUTILIZABLE ---
+# --- BLOQUE DE ENCABEZADO ---
 def _construir_encabezado(titulo_es, titulo_en, subtitulo_extra="", ancho_util=None):
     config = _get_config()
-    nombre_hotel = config.get('nombre_hotel', 'Hotel Salma Suite VIP')
+    nombre_hotel = config.get('nombre_hotel', 'Hotel Salma Suites VIP')
     rif = config.get('rif', 'J-400896975')
+    rtn = config.get('rtn', '12220')
 
     styles = getSampleStyleSheet()
     style_title_main = ParagraphStyle('TitleMain', parent=styles['Title'], fontSize=11, leading=13, alignment=TA_RIGHT, fontName='Helvetica-Bold')
     style_subtitle_main = ParagraphStyle('SubTitleMain', parent=styles['Normal'], fontSize=8, leading=10, alignment=TA_RIGHT)
     style_small_left = ParagraphStyle('SmallLeft', parent=styles['Normal'], fontSize=7, leading=9, alignment=TA_LEFT)
+    style_small_bold = ParagraphStyle('SmallBold', parent=styles['Normal'], fontSize=7, leading=9, alignment=TA_LEFT, fontName='Helvetica-Bold')
 
     logo_path = _get_logo_path()
     logo_img = Image(logo_path, width=30 * mm, height=15 * mm) if logo_path else Paragraph("", style_small_left)
@@ -56,8 +58,8 @@ def _construir_encabezado(titulo_es, titulo_en, subtitulo_extra="", ancho_util=N
     bloque_izq = [
         logo_img,
         Spacer(1, 1 * mm),
-        Paragraph(f"<b>RIF:</b> {rif}", style_small_left),
-        Paragraph(f"<b>Razón Social:</b> {nombre_hotel} C.A.", style_small_left),
+        Paragraph(f"<b>RAZÓN SOCIAL: {nombre_hotel}</b>", style_small_left),
+        Paragraph(f"<b>RIF:</b> {rif} / <b>RTN:</b> {rtn}", style_small_bold),
     ]
 
     bloque_der = [
@@ -69,9 +71,9 @@ def _construir_encabezado(titulo_es, titulo_en, subtitulo_extra="", ancho_util=N
         bloque_der.append(Paragraph(subtitulo_extra, style_subtitle_main))
 
     if ancho_util:
-        col_widths = [ancho_util * 0.45, ancho_util * 0.55]
+        col_widths = [ancho_util * 0.50, ancho_util * 0.50]
     else:
-        col_widths = ['45%', '55%']
+        col_widths = ['50%', '50%']
 
     header_table = Table([[bloque_izq, bloque_der]], colWidths=col_widths)
     header_table.setStyle(TableStyle([
@@ -122,7 +124,7 @@ def generar_hoja_huesped(reserva):
     elements.append(header_table)
     elements.append(Spacer(1, 3 * mm))
 
-    # TABLA DE ESTANCIA (Incluyendo Medio de Transporte)
+    # TABLA DE ESTANCIA
     estancia_data = [
         [
             Paragraph('<b>Habitación No.</b><br/><i>Room Nr.</i>', style_small),
@@ -168,8 +170,8 @@ def generar_hoja_huesped(reserva):
         [linea_datos("Fecha de Nacimiento /", "Date of Birth", titular.fecha_nacimiento.strftime('%d/%m/%Y') if titular.fecha_nacimiento else '—'),
             linea_datos("Estado Civil /", "Marital Status", titular.estado_civil or '—'),
             linea_datos("Nacionalidad /", "Nationality", titular.nacionalidad or '—')],
-        [linea_datos("Dirección /", "Address", titular.procedencia or '—'),
-            linea_datos("Ocupación /", "Occupation", titular.tipo_cliente_profesion or '—'),
+        [linea_datos("Dirección /", "Address", titular.direccion or '—'),
+            linea_datos("Ocupación /", "Occupation", titular.ocupacion.nombre if titular.ocupacion else '—'),
             Paragraph("", style_normal)],
         [linea_datos("Teléfono /", "Telephone", titular.telefono or '—'),
             linea_datos("Alergias /", "Allergies", getattr(titular, 'alergias', None) or "Ninguna / None"),
@@ -208,7 +210,7 @@ def generar_hoja_huesped(reserva):
     elements.append(tabla_firmas_layout)
     elements.append(Spacer(1, 4 * mm))
 
-    # ACOMPAÑANTES UNIFICADOS (Estructura idéntica al formato físico)
+    # ACOMPAÑANTES
     if acompanantes.exists():
         elements.append(Paragraph("<b>ACOMPAÑANTES / GRUPO ADICIONAL</b>", style_small_bold))
         elements.append(Spacer(1, 1 * mm))
@@ -231,30 +233,38 @@ def generar_hoja_huesped(reserva):
                 Paragraph(f"{h.tipo_documento}-{h.numero_documento}", style_normal),
                 Paragraph(f"{h.nacionalidad or '—'}", style_normal),
                 Paragraph(f"{h.edad or '—'}", style_normal),
-                Paragraph(f"{h.procedencia or '—'}", style_normal),
+                Paragraph(f"{h.direccion or '—'}", style_normal),
                 Paragraph("", style_normal),
             ])
 
-        for _ in range(max(0, 2 - len(acompanantes))):
+        for _ in range(max(0, 3 - acompanantes.count())):
             acomp_data.append([Paragraph("", style_normal)] * 7)
 
-        tabla_acomp = Table(acomp_data, colWidths=[ancho_util * 0.18, ancho_util * 0.18, ancho_util * 0.15, ancho_util * 0.12, ancho_util * 0.08, ancho_util * 0.19, ancho_util * 0.10])
+        tabla_acomp = Table(acomp_data, colWidths=[
+            ancho_util * 0.18, ancho_util * 0.18, ancho_util * 0.15,
+            ancho_util * 0.12, ancho_util * 0.08, ancho_util * 0.19, ancho_util * 0.10
+        ])
         tabla_acomp.setStyle(TableStyle([
             ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f0f0f0')),
             ('TOPPADDING', (0, 0), (-1, -1), 3),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('MINIMUMROWHEIGHT', (0, 1), (-1, -1), 10 * mm),
         ]))
         elements.append(tabla_acomp)
         elements.append(Spacer(1, 4 * mm))
 
     # TEXTO LEGAL
     texto_legal = (
-        "<b>CONDICIONES GENERALES DEL CONTRATO:</b> El huésped se compromete a respetar las normas internas del establecimiento. "
-        "El hotel no se hace responsable por objetos de valor no depositados en la caja de seguridad de la recepción. "
-        "El pago de la tarifa debe realizarse de manera oportuna según lo acordado. La salida (check-out) debe efectuarse a la hora estipulada. "
-        "El huésped es responsable de cualquier daño causado a las instalaciones o mobiliario de la habitación."
+        "<b>CONDICIONES GENERALES DEL CONTRATO.</b> El día y la hora de comienzo y terminación de este contrato se regirá por la reservación efectuada por el HUESPED con anticipación. "
+        "El HUESPED deberá devolver la habitación en las condiciones que le fue entregada en el momento del Check In, y, en caso de no hacerlo Hotel Salma Suites VIP C.A., tiene el derecho de hacer desocupar la habitación y depositar las pertenencias del huésped, a riesgo y por cuenta del mismo en un lugar seguro del establecimiento. "
+        "El HUESPED deberá pagar oportunamente la tarifa anunciada. "
+        "El HUESPED deberá hacer uso de las cajas de seguridad para guardar sus pertenencias de valor. "
+        "Hotel Salma Suites VIP C.A., no se hace responsable por los objetos de valor perdidos y/o dejados dentro de las habitaciones o espacios comunes. "
+        "El HUESPED deberá acatar las Normas Internas del Establecimiento. "
+        "El HUESPED tiene derecho a recibir la información detallada de todos y cada uno de los servicios incluidos en la tarifa. "
+        "El HUESPED tiene derecho a recibir los servicios contratados de acuerdo con la categoría y clasificación otorgados y con la mayor cortesía y eficiencia por parte del personal."
     )
     elements.append(Paragraph(texto_legal, style_legal))
 
@@ -275,7 +285,7 @@ def generar_registro_reservaciones_semanal(fecha_referencia=None):
 
     from apps.reservaciones.models import Reservacion
     from apps.habitaciones.models import Habitacion
-    from apps.configuracion.models import ColoresTipoCliente
+    from apps.configuracion.models import Ocupacion
 
     habitaciones = Habitacion.objects.all().order_by('piso', 'numero')
     reservas = Reservacion.objects.filter(
@@ -290,12 +300,11 @@ def generar_registro_reservaciones_semanal(fecha_referencia=None):
             if r.fecha_entrada <= dia < r.fecha_salida:
                 mapa[(r.id_habitacion_id, dia)] = r
 
-    colores_tipo = {}
-    for color in ColoresTipoCliente.objects.all():
-        colores_tipo[color.tipo_cliente_profesion] = color.color
+    colores_ocupacion = {}
+    for ocup in Ocupacion.objects.all():
+        colores_ocupacion[ocup.nombre] = ocup.color
 
     buffer = BytesIO()
-    # Ajustado a orientación Horizontal (Landscape) exacta de 297mm x 210mm
     page_width, page_height = 297 * mm, 210 * mm
     doc = SimpleDocTemplate(
         buffer,
@@ -325,15 +334,14 @@ def generar_registro_reservaciones_semanal(fecha_referencia=None):
     elements.append(header_table)
     elements.append(Spacer(1, 4 * mm))
 
-    if colores_tipo:
+    if colores_ocupacion:
         leyenda_items = []
-        for tipo, color_hex in colores_tipo.items():
+        for tipo, color_hex in colores_ocupacion.items():
             leyenda_items.append(f'<font color="{color_hex}"><b>■</b></font> {tipo}')
         leyenda_html = ' &nbsp;&nbsp;|&nbsp;&nbsp; '.join(leyenda_items)
         elements.append(Paragraph(leyenda_html, style_leyenda))
         elements.append(Spacer(1, 2 * mm))
 
-    # Márgenes de columnas recalculados exactamente sobre el 'ancho_util'
     col_widths = [ancho_util * 0.10] + [ancho_util * 0.09] * 7 + [ancho_util * 0.18]
     headers = [Paragraph('<b>Habitación</b>', style_header)]
     for i, dia in enumerate(dias_semana):
@@ -351,10 +359,9 @@ def generar_registro_reservaciones_semanal(fecha_referencia=None):
         for dia in dias_semana:
             r = mapa.get((hab.id, dia))
             if r:
-                tipo_cliente = r.id_huesped_titular.tipo_cliente_profesion
-                color = colores_tipo.get(tipo_cliente, '#000000')
+                ocup_nombre = r.id_huesped_titular.ocupacion.nombre if r.id_huesped_titular.ocupacion else 'Otro'
+                color = colores_ocupacion.get(ocup_nombre, '#000000')
 
-                # Indicadores de ocupación más llamativos, en negrita y con mayor tamaño visual
                 if r.fecha_entrada == dia:
                     simbolo = '▶ LLEGADA'
                 elif r.fecha_salida == dia + timedelta(days=1):

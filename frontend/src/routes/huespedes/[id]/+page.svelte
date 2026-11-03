@@ -33,19 +33,27 @@
     <title>{huesped ? `${huesped.nombres} ${huesped.apellidos}` : 'Huésped'} | SalmaSuitesPMS</title>
 </svelte:head>
 
+<PageHeader
+    title={huesped ? `${huesped.nombres} ${huesped.apellidos}` : 'Cargando...'}
+    subtitle="Ficha del huésped"
+>
+    <Button variant="ghost" size="md" onclick={volver}>
+        <span class="flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+            Volver a la lista
+        </span>
+    </Button>
+</PageHeader>
+
 {#if cargando}
     <Loading type="dashboard" message="Cargando huésped..." />
 {:else if error}
     <div class="text-center p-8 bg-hotel-error/5 border border-hotel-error/20 rounded-2xl">
         <p class="text-hotel-error-light font-bold uppercase tracking-widest text-xs mb-4">{error}</p>
-        <Button variant="gold" size="sm" onclick={volver}>Volver a huéspedes</Button>
+        <Button variant="gold" size="sm" onclick={volver}>Volver a la lista</Button>
     </div>
 {:else if huesped}
-    <PageHeader title="{huesped.nombres} {huesped.apellidos}" subtitle="Editar información del huésped">
-        <Button variant="ghost" size="sm" onclick={volver}>← Volver</Button>
-    </PageHeader>
-
-    <div class="bg-hotel-surface rounded-2xl border border-hotel-border shadow-hotel-sm p-6">
+    <div class="bg-hotel-surface rounded-2xl border border-hotel-border shadow-hotel-sm p-6 sm:p-8">
         <GuestForm id={huesped.id} onclose={volver} />
     </div>
 {/if}

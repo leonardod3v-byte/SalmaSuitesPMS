@@ -1,8 +1,12 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from . import views
+from .views import OcupacionViewSet
+
+router = DefaultRouter()
+router.register(r'ocupaciones', OcupacionViewSet, basename='ocupacion')
 
 urlpatterns = [
-    path('', views.configuracion_general, name='configuracion_general'),
-    path('colores-clientes/', views.colores_tipo_cliente, name='colores_tipo_cliente'),
-    path('colores-estados/', views.colores_estado_habitacion, name='colores_estado_habitacion'),
+    path('configuracion-general/', views.configuracion_general, name='configuracion_general'),
+    path('', include(router.urls)),
 ]

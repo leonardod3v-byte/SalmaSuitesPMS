@@ -1,37 +1,10 @@
 from django.db import models
+from apps.configuracion.models import Ocupacion
 
 class Huesped(models.Model):
-    TIPO_DOCUMENTO = [
-        ('V', 'V'),
-        ('E', 'E'),
-        ('J', 'J'),
-        ('P', 'P'),
-    ]
-    CATEGORIA = [
-        ('VIP', 'VIP'),
-        ('Estándar', 'Estándar'),
-    ]
-    TIPO_CLIENTE_PROFESION = [
-        ('Particular', 'Particular'),
-        ('Militar', 'Militar'),
-        ('Político', 'Político'),
-        ('Artista', 'Artista'),
-        ('Empresario', 'Empresario'),
-        ('Deportista', 'Deportista'),
-        ('Diplomático', 'Diplomático'),
-        ('Médico', 'Médico'),
-        ('Religioso', 'Religioso'),
-        ('Turista', 'Turista'),
-        ('Ejecutivo de Ventas', 'Ejecutivo de Ventas'),
-        ('Comerciante', 'Comerciante'),
-    ]
-    ESTADO_CIVIL = [
-        ('Soltero', 'Soltero'),
-        ('Casado', 'Casado'),
-        ('Divorciado', 'Divorciado'),
-        ('Viudo', 'Viudo'),
-        ('Concubino', 'Concubino'),
-    ]
+    TIPO_DOCUMENTO = [('V', 'V'), ('E', 'E'), ('J', 'J'), ('P', 'P')]
+    CATEGORIA = [('VIP', 'VIP'), ('Estándar', 'Estándar')]
+    ESTADO_CIVIL = [('Soltero', 'Soltero'), ('Casado', 'Casado'), ('Divorciado', 'Divorciado'), ('Viudo', 'Viudo'), ('Concubino', 'Concubino')]
 
     tipo_documento = models.CharField(max_length=1, choices=TIPO_DOCUMENTO)
     numero_documento = models.CharField(max_length=20, unique=True)
@@ -43,8 +16,11 @@ class Huesped(models.Model):
     estado_civil = models.CharField(max_length=20, choices=ESTADO_CIVIL)
     telefono = models.CharField(max_length=20)
     email = models.EmailField(blank=True)
-    procedencia = models.CharField(max_length=100)
-    tipo_cliente_profesion = models.CharField(max_length=30, choices=TIPO_CLIENTE_PROFESION)
+
+    direccion = models.TextField(blank=True, help_text="Dirección de habitación")
+    ocupacion = models.ForeignKey('configuracion.Ocupacion', on_delete=models.SET_NULL, null=True, blank=True)
+    alergias = models.TextField(blank=True, help_text="Alergias conocidas")
+
     categoria = models.CharField(max_length=10, choices=CATEGORIA, default='Estándar')
     credito_autorizado = models.BooleanField(default=False)
     limite_credito = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
@@ -60,7 +36,6 @@ class Huesped(models.Model):
         return f"{self.nombres} {self.apellidos}"
 
     def save(self, *args, **kwargs):
-        # Calcular edad automáticamente a partir de la fecha de nacimiento
         from datetime import date
         hoy = date.today()
         self.edad = hoy.year - self.fecha_nacimiento.year - ((hoy.month, hoy.day) < (self.fecha_nacimiento.month, self.fecha_nacimiento.day))

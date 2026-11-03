@@ -19,6 +19,14 @@
         max?: string;
         id?: string;
     } = $props();
+
+    let fechaFormateada = $derived(
+        value
+            ? new Date(value + 'T12:00:00').toLocaleDateString('es-VE', {
+                    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+                })
+            : ''
+    );
 </script>
 
 <div class="space-y-2 w-full">
@@ -37,6 +45,11 @@
         onchange={() => error = ''}
         class="w-full rounded-lg px-4 py-3.5 text-sm bg-hotel-bg text-hotel-text-primary border {error ? 'border-hotel-error' : 'border-hotel-border'} outline-none focus:border-hotel-gold focus:ring-4 focus:ring-hotel-gold/10"
     />
+    {#if fechaFormateada}
+        <p class="text-[10px] text-hotel-text-tertiary capitalize">
+            {fechaFormateada}
+        </p>
+    {/if}
     {#if error}
         <p class="text-xs text-hotel-error">{error}</p>
     {/if}

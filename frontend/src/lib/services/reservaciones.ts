@@ -25,8 +25,11 @@ export function createReservacion(data: any): Promise<Reservacion> {
 }
 
 // Acciones
-export function realizarCheckin(id: number): Promise<Reservacion> {
-    return apiFetch<Reservacion>(`/reservaciones/${id}/checkin/`, { method: 'POST' });
+export function realizarCheckin(id: number, acompanantesExtra: number[] = []): Promise<Reservacion> {
+    return apiFetch<Reservacion>(`/reservaciones/${id}/checkin/`, {
+        method: 'POST',
+        body: JSON.stringify({ acompanantes_extra: acompanantesExtra }),
+    });
 }
 
 export function realizarCheckout(id: number): Promise<Reservacion> {
@@ -78,19 +81,3 @@ export function registrarPago(reservaId: number, data: any): Promise<Pago> {
 export function fetchSaldo(reservaId: number): Promise<ResumenCheckout> {
     return apiFetch<ResumenCheckout>(`/reservaciones/${reservaId}/saldo/`);
 }
-
-// Colores para el calendario
-export const TIPOS_CLIENTE: Record<string, { label: string; color: string; bg: string; text: string }> = {
-    'Particular': { label: 'Particular', color: '#9E9E9E', bg: '#9E9E9E15', text: '#9E9E9E' },
-    'Empresario': { label: 'Empresario', color: '#607D8B', bg: '#607D8B15', text: '#607D8B' },
-    'Turista': { label: 'Turista', color: '#FF5722', bg: '#FF572215', text: '#FF5722' },
-    'Militar': { label: 'Militar', color: '#4CAF50', bg: '#4CAF5015', text: '#4CAF50' },
-    'Político': { label: 'Político', color: '#2196F3', bg: '#2196F315', text: '#2196F3' },
-    'Artista': { label: 'Artista', color: '#FF9800', bg: '#FF980015', text: '#FF9800' },
-    'Deportista': { label: 'Deportista', color: '#E91E63', bg: '#E91E6315', text: '#E91E63' },
-    'Diplomático': { label: 'Diplomático', color: '#3F51B5', bg: '#3F51B515', text: '#3F51B5' },
-    'Médico': { label: 'Médico', color: '#00BCD4', bg: '#00BCD415', text: '#00BCD4' },
-    'Religioso': { label: 'Religioso', color: '#FFEB3B', bg: '#FFEB3B15', text: '#FFEB3B' },
-    'Ejecutivo de Ventas': { label: 'Ejecutivo Ventas', color: '#795548', bg: '#79554815', text: '#795548' },
-    'Comerciante': { label: 'Comerciante', color: '#8BC34A', bg: '#8BC34A15', text: '#8BC34A' },
-};

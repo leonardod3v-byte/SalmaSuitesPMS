@@ -38,6 +38,12 @@
         usuarioEditar = u;
         mostrarForm = true;
     }
+
+    function cerrarForm() {
+        mostrarForm = false;
+        usuarioEditar = null;
+        cargar();
+    }
 </script>
 
 <svelte:head>
@@ -67,7 +73,13 @@
 {/if}
 
 {#if mostrarForm}
-    <Modal title={usuarioEditar ? 'Editar Usuario' : 'Nuevo Usuario'} onclose={() => { mostrarForm = false; cargar(); }}>
-        <UsuarioForm usuario={usuarioEditar} onsuccess={() => { mostrarForm = false; cargar(); }} onclose={() => { mostrarForm = false; }} />
+    <Modal
+        title={usuarioEditar ? 'Editar Usuario' : 'Nuevo Usuario'}
+        onclose={cerrarForm}
+    >
+        <UsuarioForm
+            usuario={usuarioEditar}
+            onclose={cerrarForm}
+        />
     </Modal>
 {/if}

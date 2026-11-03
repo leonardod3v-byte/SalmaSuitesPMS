@@ -1,6 +1,5 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { page } from '$app/stores';
     import PageHeader from '$components/ui/PageHeader.svelte';
     import Button from '$components/ui/Button.svelte';
     import Modal from '$components/ui/Modal.svelte';
@@ -15,7 +14,6 @@
     let cargando = $state(true);
     let error = $state('');
     let mostrarForm = $state(false);
-    let empresaEditar = $state<number | null>(null);
     let busqueda = $state('');
 
     let filtradas = $derived(
@@ -29,14 +27,7 @@
 
     let tieneFiltros = $derived(busqueda.trim().length > 0);
 
-    onMount(async () => {
-        await cargar();
-        const idParam = $page.url.searchParams.get('id');
-        if (idParam) {
-            empresaEditar = Number(idParam);
-            mostrarForm = true;
-        }
-    });
+    onMount(cargar);
 
     async function cargar() {
         cargando = true;
@@ -59,7 +50,7 @@
 </svelte:head>
 
 <PageHeader title="Empresas" subtitle="{filtradas.length} empresas registradas">
-    <Button variant="gold" size="md" onclick={() => { empresaEditar = null; mostrarForm = true; }}>
+    <Button variant="gold" size="md" onclick={() => mostrarForm = true}>
         <span class="flex items-center gap-1.5">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             Nueva empresa
@@ -85,7 +76,7 @@
 {/if}
 
 {#if mostrarForm}
-    <Modal title={empresaEditar ? 'Editar Empresa' : 'Nueva Empresa'} onclose={() => { mostrarForm = false; cargar(); }}>
-        <EmpresaForm id={empresaEditar} onclose={() => { mostrarForm = false; cargar(); }} />
+    <Modal title="Nueva Empresa" onclose={() => { mostrarForm = false; cargar(); }}>
+        <EmpresaForm id={null} onclose={() => { mostrarForm = false; cargar(); }} />
     </Modal>
 {/if}

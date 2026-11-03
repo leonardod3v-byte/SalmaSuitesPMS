@@ -8,7 +8,6 @@ def obtener_huesped(pk: int) -> Huesped:
     return Huesped.objects.get(pk=pk)
 
 def crear_huesped(**datos) -> Huesped:
-    # El serializador se encarga de la validación de unicidad
     huesped = Huesped(**datos)
     huesped.save()
     return huesped
@@ -16,24 +15,24 @@ def crear_huesped(**datos) -> Huesped:
 def actualizar_huesped(huesped: Huesped, datos: dict) -> Huesped:
     for campo, valor in datos.items():
         if campo == 'edad' and valor is not None:
-            # La edad se recalculará en el save, pero si se envía manualmente se ignora
             continue
         setattr(huesped, campo, valor)
     huesped.save()
     return huesped
 
-def validar_disponibilidad_huesped(huesped_id: int) -> bool:
-    """
-    Retorna True si el huésped NO tiene reservación activa (Confirmada o EnCurso).
-    """
-    tiene_activa = Reservacion.objects.filter(
+def validar_disponibilidad_huesped(huesped_id):
+    """Un huésped está disponible si NO tiene reservas EnCurso."""
+    from apps.reservaciones.models import Reservacion
+    es_titular_activo = Reservacion.objects.filter(
         id_huesped_titular_id=huesped_id,
-        estado__in=['Confirmada', 'EnCurso']
+        estado='EnCurso'
     ).exists()
-    # También como acompañante
-    tiene_activa |= Reservacion.objects.filter(
-        huespedes_secundarios__id_huesped_id=huesped_id,
-        huespedes_secundarios__rol='Acompañante',
-        estado__in=['Confirmada', 'EnCurso']
+    if es_titular_activo:
+        return False
+    from apps.reservaciones.models import ReservacionHuespedes
+    es_acompanante_activo = ReservacionHuespedes.objects.filter(
+        id_huesped_id=huesped_id,
+        id_reservacion__estado='EnCurso',
+        rol='Acompañante'
     ).exists()
-    return not tiene_activa
+    return not es_acompanante_activo

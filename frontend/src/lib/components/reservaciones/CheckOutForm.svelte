@@ -132,8 +132,9 @@
 
                 {#if metodoPago !== 'Efectivo'}
                     <div class="space-y-2">
-                        <label class="block text-sm font-medium text-hotel-text-secondary">Nº Referencia o Voucher</label>
+                        <label for="referencia-input" class="block text-sm font-medium text-hotel-text-secondary">Nº Referencia o Voucher</label>
                         <input
+                            id="referencia-input"
                             type="text"
                             bind:value={referencia}
                             placeholder="Ej: 123456"

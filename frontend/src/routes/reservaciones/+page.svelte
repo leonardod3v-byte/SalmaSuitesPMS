@@ -12,6 +12,7 @@
     import ReservaForm from '$components/reservaciones/ReservaForm.svelte';
     import { fetchReservaciones } from '$lib/services/reservaciones';
     import { fetchHabitaciones } from '$lib/services/habitaciones';
+    import { toast } from '$lib/stores/toast';
     import type { Reservacion } from '$lib/types/reservacion';
     import type { Habitacion } from '$lib/types/habitacion';
 
@@ -150,7 +151,7 @@
         <Button variant="secondary" size="md" onclick={descargarRegistroSemanal}>
             <span class="flex items-center gap-1.5">
                 <Icon name="file" class="w-4 h-4" />
-                Registro Semanal
+                Registro semanal
             </span>
         </Button>
 
@@ -173,9 +174,8 @@
 {:else}
     <div class="space-y-6">
 
-        <!-- Barra de Filtros Unificada -->
+        <!-- Barra de Filtros -->
         <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 p-4 rounded-2xl bg-hotel-surface/40 border border-hotel-border">
-            <!-- Inputs de fecha alineados al fondo -->
             <div class="flex flex-wrap items-end gap-3">
                 <div class="w-full sm:w-auto">
                     <DatePicker label="Desde" bind:value={fechaDesde} />
@@ -191,7 +191,6 @@
                 {/if}
             </div>
 
-            <!-- Tabs de vista a la derecha -->
             <div class="flex items-center gap-2">
                 <Tabs
                     tabs={[{ key: 'calendario', label: 'Calendario' }, { key: 'lista', label: 'Lista' }]}
@@ -203,16 +202,7 @@
 
         {#if vista === 'calendario'}
             <BookingCalendar
-                reservas={reservaciones.map(r => ({
-                    id: r.id,
-                    fecha_entrada: r.fecha_entrada,
-                    fecha_salida: r.fecha_salida,
-                    estado: r.estado,
-                    habitacion_numero: r.habitacion_numero || '',
-                    huesped_nombre: r.huesped_nombre || '',
-                    huesped_documento: r.huesped_documento || '',
-                    tipo_cliente: r.tipo_cliente || 'Particular',
-                }))}
+                reservas={reservaciones}
                 habitaciones={habitaciones.map(h => ({
                     numero: h.numero,
                     tipo_nombre: h.categoria_tipo,
@@ -279,11 +269,18 @@
 
                                     <!-- Huésped -->
                                     <td class="p-4">
-                                        <p class="font-bold text-hotel-text-primary text-sm">{r.huesped_nombre}</p>
+                                        <div class="flex items-center gap-1.5">
+                                            <p class="font-bold text-hotel-text-primary text-sm">{r.huesped_nombre}</p>
+                                            {#if r.empresa_nombre}
+                                                <span class="px-1 py-0.5 rounded text-[8px] font-black uppercase bg-hotel-vip/20 text-hotel-vip-light border border-hotel-vip/30" title={r.empresa_nombre}>
+                                                    Empresa
+                                                </span>
+                                            {/if}
+                                        </div>
                                         <p class="text-[10px] text-hotel-text-tertiary">{r.huesped_documento}</p>
                                     </td>
 
-                                    <!-- Habitación (rediseñada) -->
+                                    <!-- Habitación -->
                                     <td class="p-4">
                                         <span class="text-hotel-text-primary font-bold text-sm">
                                             Hab. <span class="text-hotel-gold">{r.habitacion_numero}</span>

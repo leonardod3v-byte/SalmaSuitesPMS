@@ -1,3 +1,28 @@
+export interface HuespedBasico {
+    id: number;
+    tipo_documento: string;
+    numero_documento: string;
+    nombres: string;
+    apellidos: string;
+    fecha_nacimiento: string;
+    edad: number;
+    nacionalidad: string;
+    estado_civil: string;
+    telefono: string;
+    email: string;
+    direccion: string;
+    alergias: string;
+    ocupacion_nombre?: string;
+    ocupacion_color?: string;
+}
+
+export interface Acompanante {
+    id: number;
+    id_huesped: number;
+    rol: 'Titular' | 'Acompañante';
+    huesped_detalle: HuespedBasico;
+}
+
 export interface Reservacion {
     id: number;
     id_huesped_titular: number;
@@ -21,7 +46,11 @@ export interface Reservacion {
     fecha_checkout_real: string | null;
     huesped_nombre?: string;
     huesped_documento?: string;
+    huesped_titular_detalle?: HuespedBasico;
     habitacion_numero?: string;
+    ocupacion_nombre?: string;
+    ocupacion_color?: string;
+    acompanantes?: Acompanante[];
 }
 
 export interface ReservaListItem {
@@ -32,7 +61,9 @@ export interface ReservaListItem {
     habitacion_numero: string;
     huesped_nombre: string;
     huesped_documento: string;
-    tipo_cliente: string;
+    ocupacion_nombre?: string;
+    ocupacion_color?: string;
+    empresa_nombre?: string;
 }
 
 export interface Consumo {

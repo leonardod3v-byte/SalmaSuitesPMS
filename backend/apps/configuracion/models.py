@@ -13,21 +13,14 @@ class Configuracion(models.Model):
         return self.clave
 
 
-class ColoresTipoCliente(models.Model):
-    tipo_cliente_profesion = models.CharField(max_length=30, primary_key=True)
-    color = models.CharField(max_length=7)
+class Ocupacion(models.Model):
+    nombre = models.CharField(max_length=50, unique=True)
+    color = models.CharField(max_length=7, default='#3b82f6', help_text="Color hex (ej: #3b82f6)")
 
     class Meta:
-        db_table = 'colores_tipo_cliente'
-        verbose_name = 'Color por tipo de cliente'
-        verbose_name_plural = 'Colores por tipo de cliente'
+        db_table = 'ocupaciones'
+        verbose_name = 'Ocupación'
+        verbose_name_plural = 'Ocupaciones'
 
-
-class ColoresEstadoHabitacion(models.Model):
-    estado = models.CharField(max_length=15, primary_key=True)
-    color = models.CharField(max_length=7)
-
-    class Meta:
-        db_table = 'colores_estado_habitacion'
-        verbose_name = 'Color por estado de habitación'
-        verbose_name_plural = 'Colores por estado de habitación'
+    def __str__(self):
+        return self.nombre
