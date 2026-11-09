@@ -7,7 +7,6 @@
   import Button from '$components/ui/Button.svelte';
   import InputHotel from '$components/ui/Input.svelte';
   import CardHotel from '$components/ui/Card.svelte';
-  import Icon from '$components/ui/Icons.svelte';
 
   let username = $state('');
   let password = $state('');
@@ -33,7 +32,17 @@
     try {
       await auth.login(username, password);
       sessionStorage.setItem('justLoggedIn', 'true');
-      goto('/dashboard', { replaceState: true });
+
+      const redirectTo = typeof window !== 'undefined'
+        ? sessionStorage.getItem('redirect_to')
+        : null;
+
+      if (redirectTo) {
+        sessionStorage.removeItem('redirect_to');
+        goto(redirectTo, { replaceState: true });
+      } else {
+        goto('/dashboard', { replaceState: true });
+      }
     } catch (err: unknown) {
       if (err instanceof Error) {
         error = err.message;

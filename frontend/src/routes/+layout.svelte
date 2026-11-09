@@ -17,6 +17,16 @@
     PUBLIC_ROUTES.some(r => $pageStore.url.pathname.startsWith(r))
   );
 
+  function redirigirAlLogin() {
+    if (typeof window !== 'undefined') {
+      const pathname = $pageStore.url.pathname;
+
+      const destino = pathname === '/' ? '/dashboard' : pathname;
+      sessionStorage.setItem('redirect_to', destino);
+    }
+    goto('/login', { replaceState: true });
+  }
+
   async function verificarSesion() {
     if (isPublicPage) {
       if (!auth.user) auth.init(null);
@@ -29,7 +39,7 @@
 
     if (!tokenLocal) {
       auth.init(null);
-      goto(`/login?redirectTo=${encodeURIComponent($pageStore.url.pathname)}`, { replaceState: true });
+      redirigirAlLogin();
       return;
     }
 
@@ -41,7 +51,7 @@
         localStorage.removeItem('auth_token');
       }
       auth.init(null);
-      goto(`/login?redirectTo=${encodeURIComponent($pageStore.url.pathname)}`, { replaceState: true });
+      redirigirAlLogin();
     }
   }
 
