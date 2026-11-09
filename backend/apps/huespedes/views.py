@@ -137,6 +137,7 @@ def exportar_huespedes_xls(request):
     # Datos
     for row_idx, h in enumerate(qs, header_row + 1):
         credito = f'Sí (${h.limite_credito})' if h.credito_autorizado else 'No'
+        ocupacion = h.ocupacion.nombre if h.ocupacion else '—'
 
         datos_fila = [
             h.nombres,
@@ -146,7 +147,7 @@ def exportar_huespedes_xls(request):
             h.nacionalidad,
             h.telefono,
             h.email or '—',
-            h.tipo_cliente_profesion,
+            ocupacion,
             h.categoria,
             credito,
         ]

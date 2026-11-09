@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount, onDestroy } from 'svelte';
-    import { goto } from '$app/navigation';
+    import { goto, afterNavigate } from '$app/navigation';  // 👈 NUEVO: afterNavigate
     import { apiFetch } from '$lib/services/api';
     import WelcomeBanner from '$components/dashboard/WelcomeBanner.svelte';
     import KPICard from '$components/dashboard/KPICard.svelte';
@@ -8,9 +8,7 @@
     import ActividadesLog from '$components/dashboard/ActividadesLog.svelte';
     import RoomMap from '$components/dashboard/RoomMap.svelte';
     import Loading from '$components/ui/Loading.svelte';
-    import PageHeader from '$components/ui/PageHeader.svelte';
     import Button from '$components/ui/Button.svelte';
-    import Icon from '$components/ui/Icons.svelte';
     import { auth } from '$stores/auth.svelte';
 
     let kpis = $state<any>(null);
@@ -18,7 +16,6 @@
     let actividades = $state<any[]>([]);
     let habitaciones = $state<any[]>([]);
     let proximosCheckouts = $state<any>(null);
-    let habitacionesSucias = $state<number>(0);
     let cargando = $state(true);
     let error = $state('');
     let pollingInterval: ReturnType<typeof setInterval>;
@@ -37,7 +34,6 @@
             actividades = a;
             habitaciones = h;
             proximosCheckouts = p;
-            habitacionesSucias = h.filter((hab: any) => hab.estado === 'Sucia').length;
         } catch (e: any) {
             error = e.message || 'Error al cargar el panel';
         } finally {
@@ -45,8 +41,22 @@
         }
     }
 
+    async function refrescarSoloKPIs() {
+        try {
+            const [k, p, h] = await Promise.all([
+                apiFetch<any>('/dashboard/kpis/'),
+                apiFetch<any>('/dashboard/proximos-checkouts/'),
+                apiFetch<any[]>('/habitaciones/'),
+            ]);
+            kpis = k;
+            proximosCheckouts = p;
+            habitaciones = h;
+        } catch { }
+    }
+
     onMount(() => {
         cargarDatos();
+
         pollingInterval = setInterval(async () => {
             try {
                 const a = await apiFetch<any[]>('/bitacora/actividades/?limit=20');
@@ -57,6 +67,12 @@
 
     onDestroy(() => {
         if (pollingInterval) clearInterval(pollingInterval);
+    });
+
+    afterNavigate(({ to }) => {
+        if (to?.url.pathname === '/dashboard') {
+            refrescarSoloKPIs();
+        }
     });
 </script>
 
@@ -75,10 +91,8 @@
     </div>
 {:else}
     <div class="space-y-8">
-        <!-- HERO: Bienvenida + Fecha -->
         <WelcomeBanner stats={{ checkIns: kpis?.checkins_hoy ?? 0, checkOuts: proximosCheckouts?.total ?? 0 }} />
 
-        <!-- SECCIÓN 1: KPIs Principales -->
         <section>
             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 <a href="/habitaciones?estado=Ocupada" class="block">
@@ -108,19 +122,18 @@
                         color="gold"
                     />
                 </a>
-                <a href="/huespedes?categoria=VIP&solo_alojados=1" class="block">
+                <a href="/habitaciones?estado=Limpieza" class="block">
                     <KPICard
-                        title="Clientes VIP"
-                        value={kpis?.vip_alojados ?? 0}
-                        subtitle="{kpis?.productos_bajos ?? 0} productos bajos"
-                        iconName="corona"
-                        color="vip"
+                        title="Por Limpiar"
+                        value={habitaciones.filter((h: any) => h.estado === 'Limpieza').length}
+                        subtitle="Habitaciones pendientes de limpieza"
+                        iconName="box"
+                        color="info"
                     />
                 </a>
             </div>
         </section>
 
-        <!-- SECCIÓN 3: Análisis (Gráfico + Actividad) -->
         <section>
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                 <div class="lg:col-span-2 h-100 min-w-0">
@@ -132,7 +145,6 @@
             </div>
         </section>
 
-        <!-- SECCIÓN 4: Mapa de Habitaciones -->
         <section>
             <RoomMap habitaciones={habitaciones} />
         </section>

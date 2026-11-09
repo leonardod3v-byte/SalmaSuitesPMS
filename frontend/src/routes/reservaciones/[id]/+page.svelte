@@ -176,19 +176,22 @@
             <!-- Info de la reserva -->
             <div class="lg:col-span-2 bg-hotel-surface rounded-2xl border border-hotel-border p-6">
                 <!-- Encabezado -->
-                <div class="flex items-start justify-between mb-5">
-                    <div>
-                        <p class="text-[10px] uppercase tracking-wider text-hotel-text-tertiary mb-1">Huésped Titular</p>
+                <div>
+                    <p class="text-[10px] uppercase tracking-wider text-hotel-text-tertiary mb-1">Huésped Titular</p>
+                    <div class="flex items-center gap-2">
                         <p class="text-lg font-bold text-hotel-text-primary">{reservacion.huesped_nombre}</p>
-                        {#if reservacion.huesped_titular_detalle?.ocupacion_nombre}
-                            <p class="text-[11px] text-hotel-text-tertiary mt-0.5">
-                                {reservacion.huesped_titular_detalle.ocupacion_nombre}
-                            </p>
+                        {#if reservacion.huesped_titular_detalle?.categoria === 'VIP'}
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-hotel-vip/10 text-hotel-vip-light border border-hotel-vip/30">
+                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                                VIP
+                            </span>
                         {/if}
                     </div>
-                    <span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border {estadoClases[reservacion.estado] || ''}">
-                        {reservacion.estado}
-                    </span>
+                    {#if reservacion.huesped_titular_detalle?.ocupacion_nombre}
+                        <p class="text-[11px] text-hotel-text-tertiary mt-0.5">
+                            {reservacion.huesped_titular_detalle.ocupacion_nombre}
+                        </p>
+                    {/if}
                 </div>
 
                 <!-- Datos -->

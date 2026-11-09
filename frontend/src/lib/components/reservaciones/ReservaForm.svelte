@@ -50,13 +50,20 @@
     let habitacionSeleccionada = $state<Habitacion | null>(null);
     let filtroTipoHabitacion = $state('');
 
-    let tiposHabitacionDisponibles = $derived(
-        [...new Set(habitaciones.map(h => h.categoria_tipo || 'Sin categoría'))].sort()
+    let totalPersonas = $derived(1 + acompanantes.length);
+
+    let habitacionesDisponibles = $derived(
+        habitaciones.filter(h => h.capacidad_maxima >= totalPersonas)
     );
+
+    let tiposHabitacionDisponibles = $derived(
+        [...new Set(habitacionesDisponibles.map(h => h.categoria_tipo || 'Sin categoría'))].sort()
+    );
+
     let habitacionesFiltradas = $derived(
         filtroTipoHabitacion
-            ? habitaciones.filter(h => (h.categoria_tipo || 'Sin categoría') === filtroTipoHabitacion)
-            : habitaciones
+            ? habitacionesDisponibles.filter(h => (h.categoria_tipo || 'Sin categoría') === filtroTipoHabitacion)
+            : habitacionesDisponibles
     );
 
     let fechaEntrada = $state(new Date().toISOString().split('T')[0]);
@@ -75,7 +82,6 @@
             : parseFloat(habitacionSeleccionada?.precio_por_noche || '0')
     );
     let totalHabitacion = $derived(noches * precioBase);
-    let totalPersonas = $derived(1 + acompanantes.length);
 
     async function buscarHuespedes() {
         if (busquedaHuesped.length < 2) { huespedes = []; mostrarDropdownTitular = false; return; }
@@ -111,6 +117,10 @@
         acompanantes = [...acompanantes, h];
         mostrarDropdownAcompanante = false;
         busquedaAcompanante = '';
+
+        if (habitacionSeleccionada && habitacionSeleccionada.capacidad_maxima < (1 + acompanantes.length)) {
+            habitacionSeleccionada = null;
+        }
     }
 
     async function cargarHabitaciones() {
@@ -137,6 +147,10 @@
         acompanantes = [...acompanantes, nuevo];
         mostrarFormNuevoAcompanante = false;
         toast.success(`${nuevo.nombres} agregado como acompañante.`);
+
+        if (habitacionSeleccionada && habitacionSeleccionada.capacidad_maxima < (1 + acompanantes.length)) {
+            habitacionSeleccionada = null;
+        }
     }
 
     async function siguientePaso() {
@@ -151,9 +165,6 @@
             }
         }
         if (paso === 3 && !habitacionSeleccionada) { error = 'Selecciona una habitación.'; return; }
-        if (paso === 3 && habitacionSeleccionada && habitacionSeleccionada.capacidad_maxima < totalPersonas) {
-            error = `La habitación tiene capacidad para ${habitacionSeleccionada.capacidad_maxima} personas.`; return;
-        }
         if (paso === 4 && noches <= 0) { error = 'La fecha de salida debe ser posterior a la de entrada.'; return; }
         paso++;
     }
@@ -328,7 +339,9 @@
 
             {#if habitacionesFiltradas.length === 0}
                 <div class="p-4 text-center rounded-xl border border-dashed border-hotel-border">
-                    <p class="text-sm text-hotel-text-secondary">No hay habitaciones disponibles con este filtro.</p>
+                    <p class="text-sm text-hotel-text-secondary">
+                        No hay habitaciones disponibles con capacidad para {totalPersonas} {(totalPersonas === 1 ? 'persona' : 'personas')}.
+                    </p>
                 </div>
             {:else}
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-64 overflow-y-auto custom-scrollbar p-1">
