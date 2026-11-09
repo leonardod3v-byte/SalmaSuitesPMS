@@ -100,8 +100,8 @@
             <a href="/perfil" class="flex items-center gap-3 px-3 py-2 rounded-lg text-hotel-text-secondary hover:bg-hotel-surface-hover hover:text-hotel-text-primary transition-colors text-sm">
               <Icon name="user" class="w-4 h-4" /> Mi perfil
             </a>
-            <a href="/configuracion" class="flex items-center gap-3 px-3 py-2 rounded-lg text-hotel-text-secondary hover:bg-hotel-surface-hover hover:text-hotel-text-primary transition-colors text-sm">
-              <Icon name="config" class="w-4 h-4" /> Configuración
+            <a href="/ocupaciones" class="flex items-center gap-3 px-3 py-2 rounded-lg text-hotel-text-secondary hover:bg-hotel-surface-hover hover:text-hotel-text-primary transition-colors text-sm">
+              <Icon name="config" class="w-4 h-4" /> Ocupaciones
             </a>
             <div class="my-1 border-t border-hotel-border/50"></div>
             <button onclick={logout} class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-hotel-error hover:bg-hotel-error/10 transition-colors text-sm font-medium">

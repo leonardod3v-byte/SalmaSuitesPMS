@@ -14,12 +14,10 @@ from django.db.models import Sum
 import os
 
 
-def _get_config():
-    from apps.configuracion.models import Configuracion
-    config = {}
-    for c in Configuracion.objects.all():
-        config[c.clave] = c.valor
-    return config
+# ─── Datos fijos del hotel ──────────────────────────────────
+HOTEL_NOMBRE = "Hotel Salma Suites VIP, C.A."
+HOTEL_RIF = "J-400896975"
+HOTEL_RTN = "12220"
 
 
 def _get_logo_path():
@@ -27,25 +25,11 @@ def _get_logo_path():
     logo_path = os.path.join(base_dir, 'assets', 'logo.png')
     if os.path.exists(logo_path):
         return logo_path
-
-    config = _get_config()
-    logo_nombre = config.get('logo', '')
-    if logo_nombre:
-        if logo_nombre.lower().endswith('.svg'):
-            logo_nombre = logo_nombre[:-4] + '.png'
-        ruta_media = os.path.join(settings.MEDIA_ROOT, logo_nombre)
-        if os.path.exists(ruta_media):
-            return ruta_media
     return None
 
 
 # --- BLOQUE DE ENCABEZADO ---
 def _construir_encabezado(titulo_es, titulo_en, subtitulo_extra="", ancho_util=None):
-    config = _get_config()
-    nombre_hotel = config.get('nombre_hotel', 'Hotel Salma Suites VIP')
-    rif = config.get('rif', 'J-400896975')
-    rtn = config.get('rtn', '12220')
-
     styles = getSampleStyleSheet()
     style_title_main = ParagraphStyle('TitleMain', parent=styles['Title'], fontSize=11, leading=13, alignment=TA_RIGHT, fontName='Helvetica-Bold')
     style_subtitle_main = ParagraphStyle('SubTitleMain', parent=styles['Normal'], fontSize=8, leading=10, alignment=TA_RIGHT)
@@ -58,8 +42,8 @@ def _construir_encabezado(titulo_es, titulo_en, subtitulo_extra="", ancho_util=N
     bloque_izq = [
         logo_img,
         Spacer(1, 1 * mm),
-        Paragraph(f"<b>RAZÓN SOCIAL: {nombre_hotel}</b>", style_small_left),
-        Paragraph(f"<b>RIF:</b> {rif} / <b>RTN:</b> {rtn}", style_small_bold),
+        Paragraph(f"<b>RAZÓN SOCIAL: {HOTEL_NOMBRE}</b>", style_small_left),
+        Paragraph(f"<b>RIF:</b> {HOTEL_RIF} / <b>RTN:</b> {HOTEL_RTN}", style_small_bold),
     ]
 
     bloque_der = [

@@ -31,7 +31,7 @@
   ];
   const menuAdmin: { key: MenuKey; label: string; href: string }[] = [
     { key: 'user',     label: 'Usuarios',     href: '/usuarios' },
-    { key: 'config',       label: 'Configuración', href: '/configuracion' },
+    { key: 'config',   label: 'Ocupaciones',  href: '/ocupaciones' },
   ];
 
   function isActive(href: string): boolean {
