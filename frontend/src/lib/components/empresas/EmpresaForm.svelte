@@ -16,6 +16,12 @@
     let telefono = $state('');
     let email = $state('');
 
+    let errorNombre = $state('');
+    let errorRif = $state('');
+    let errorDireccion = $state('');
+    let errorTelefono = $state('');
+    let errorEmail = $state('');
+
     onMount(async () => {
         if (id) {
             try {
@@ -32,14 +38,33 @@
     async function handleSubmit(e: Event) {
         e.preventDefault();
         error = '';
+        errorNombre = '';
+        errorRif = '';
+        errorDireccion = '';
+        errorTelefono = '';
+        errorEmail = '';
+
+        if (!nombre.trim()) {
+            errorNombre = 'El nombre es obligatorio.';
+            return;
+        }
         if (!/^[VEJPG]-\d{8}-\d$/.test(rif)) {
-            error = 'El formato del RIF debe ser J-12345678-9.';
+            errorRif = 'El formato del RIF debe ser J-12345678-9.';
+            return;
+        }
+        if (!direccion_fiscal.trim() || direccion_fiscal.trim().length < 5) {
+            errorDireccion = 'La dirección debe tener al menos 5 caracteres.';
+            return;
+        }
+        if (telefono && !/^[\+]?[\d\s\-\(\)]{7,20}$/.test(telefono)) {
+            errorTelefono = 'El teléfono solo puede contener números, espacios, guiones, paréntesis y +.';
             return;
         }
         if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            error = 'Ingresa un correo electrónico válido.';
+            errorEmail = 'Ingresa un correo electrónico válido.';
             return;
         }
+
         loading = true;
         const payload = { nombre, rif, direccion_fiscal, telefono, email };
         try {
@@ -48,7 +73,13 @@
             onclose();
             setTimeout(() => goto('/empresas', { invalidateAll: true }), 800);
         } catch (e: any) {
-            error = e.message || 'Error al guardar';
+            const msg = e.message || 'Error al guardar';
+            if (msg.toLowerCase().includes('rif')) errorRif = msg;
+            else if (msg.toLowerCase().includes('correo') || msg.toLowerCase().includes('email')) errorEmail = msg;
+            else if (msg.toLowerCase().includes('teléfono')) errorTelefono = msg;
+            else if (msg.toLowerCase().includes('dirección')) errorDireccion = msg;
+            else if (msg.toLowerCase().includes('nombre')) errorNombre = msg;
+            else error = msg;
         } finally { loading = false; }
     }
 </script>
@@ -61,17 +92,17 @@
     <div class="p-4 rounded-xl bg-hotel-bg/40 border border-hotel-border space-y-4">
         <p class="text-[10px] font-black uppercase tracking-wider text-hotel-gold">Datos Fiscales</p>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <InputHotel label="Nombre o Razón Social" bind:value={nombre} required placeholder="Ej: Inversiones ABC, C.A." />
-            <InputHotel label="RIF" bind:value={rif} required placeholder="Ej: J-12345678-9" />
+            <InputHotel label="Nombre o Razón Social" bind:value={nombre} required placeholder="Ej: Inversiones ABC, C.A." error={errorNombre} />
+            <InputHotel label="RIF" bind:value={rif} required placeholder="Ej: J-12345678-9" error={errorRif} />
         </div>
-        <Textarea label="Dirección Fiscal" bind:value={direccion_fiscal} required placeholder="Av. Principal, Edificio..." rows={2} />
+        <Textarea label="Dirección Fiscal" bind:value={direccion_fiscal} required placeholder="Av. Principal, Edificio..." rows={2} error={errorDireccion} />
     </div>
 
     <div class="p-4 rounded-xl bg-hotel-bg/40 border border-hotel-border space-y-4">
         <p class="text-[10px] font-black uppercase tracking-wider text-hotel-gold">Contacto</p>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <InputHotel label="Teléfono" bind:value={telefono} placeholder="0212-5551234" />
-            <InputHotel label="Email" type="email" bind:value={email} placeholder="contacto@empresa.com" />
+            <InputHotel label="Teléfono" bind:value={telefono} placeholder="0212-5551234" error={errorTelefono} />
+            <InputHotel label="Email" type="email" bind:value={email} placeholder="contacto@empresa.com" error={errorEmail} />
         </div>
     </div>
 

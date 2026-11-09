@@ -1,6 +1,10 @@
 from rest_framework import serializers
 from .models import Huesped
 from apps.configuracion.serializers import OcupacionSerializer
+from apps.utils import (
+    validar_email, validar_telefono, validar_nombre,
+    validar_numero_documento,
+)
 from datetime import date
 
 
@@ -35,14 +39,24 @@ class HuespedSerializer(serializers.ModelSerializer):
         return value
 
     def validate_email(self, value):
-        if value:
-            from django.core.validators import validate_email
-            from django.core.exceptions import ValidationError as DjangoValidationError
-            try:
-                validate_email(value)
-            except DjangoValidationError:
-                raise serializers.ValidationError("Ingresa un correo electrónico válido.")
-        return value
+        return validar_email(value)
+
+    def validate_telefono(self, value):
+        return validar_telefono(value)
+
+    def validate_nombres(self, value):
+        return validar_nombre(value, campo="nombre")
+
+    def validate_apellidos(self, value):
+        return validar_nombre(value, campo="apellido")
+
+    def validate_numero_documento(self, value):
+        tipo = None
+        if self.initial_data:
+            tipo = self.initial_data.get('tipo_documento')
+        if not tipo and self.instance:
+            tipo = self.instance.tipo_documento
+        return validar_numero_documento(value, tipo)
 
     def validate(self, data):
         tipo = data.get('tipo_documento')

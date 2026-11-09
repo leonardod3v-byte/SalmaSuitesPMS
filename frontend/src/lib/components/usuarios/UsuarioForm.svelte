@@ -21,7 +21,9 @@
     let role = $state('recepcionista');
     let email = $state('');
 
-    // Ojitos
+    let errorUsername = $state('');
+    let errorEmail = $state('');
+
     let mostrarPassword = $state(false);
     let mostrarConfirmPassword = $state(false);
 
@@ -57,7 +59,13 @@
     };
 
     async function guardar() {
-        if (!username.trim()) { toast.error('El nombre de usuario es obligatorio.'); return; }
+        errorUsername = '';
+        errorEmail = '';
+
+        if (!username.trim()) {
+            errorUsername = 'El nombre de usuario es obligatorio.';
+            return;
+        }
 
         if (esNuevo) {
             if (!password.trim()) { toast.error('La contraseña es obligatoria.'); return; }
@@ -88,7 +96,14 @@
             }
             onclose();
         } catch (e: any) {
-            toast.error(e?.message || 'Error al guardar usuario.');
+            const msg = e?.message || 'Error al guardar usuario.';
+            toast.error(msg);
+
+            if (msg.toLowerCase().includes('email') || msg.toLowerCase().includes('correo')) {
+                errorEmail = msg;
+            } else if (msg.toLowerCase().includes('username') || msg.toLowerCase().includes('usuario')) {
+                errorUsername = msg;
+            }
         } finally {
             loading = false;
         }
@@ -101,12 +116,14 @@
             {esNuevo ? 'Nuevo Usuario' : 'Editar Usuario'}
         </p>
 
-        {#if esNuevo}
-            <InputHotel label="Nombre de Usuario" bind:value={username} required placeholder="Ej: recepcion" />
-        {:else}
-            <InputHotel label="Nombre de Usuario" bind:value={username} required />
-            <p class="text-[10px] text-hotel-text-tertiary">El nombre de usuario no se puede cambiar.</p>
-        {/if}
+        <div>
+            {#if esNuevo}
+                <InputHotel label="Nombre de Usuario" bind:value={username} required placeholder="Ej: recepcion" error={errorUsername} />
+            {:else}
+                <InputHotel label="Nombre de Usuario" bind:value={username} required error={errorUsername} />
+                <p class="text-[10px] text-hotel-text-tertiary mt-1">El nombre de usuario no se puede cambiar.</p>
+            {/if}
+        </div>
 
         <div class="space-y-1.5 w-full">
             <label for="password" class="block text-sm font-medium tracking-wide text-hotel-text-secondary select-none">
@@ -198,7 +215,7 @@
             {/if}
         {/if}
 
-        <InputHotel label="Email" type="email" bind:value={email} placeholder="ejemplo@hotel.com" />
+        <InputHotel label="Email" type="email" bind:value={email} placeholder="ejemplo@hotel.com" error={errorEmail} />
         <Select label="Rol" options={roles} bind:value={role} required />
     </div>
 

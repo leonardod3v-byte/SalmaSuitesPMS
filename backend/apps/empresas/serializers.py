@@ -1,6 +1,10 @@
 from rest_framework import serializers
 from .models import Empresa
-import re
+from apps.utils import (
+    validar_email, validar_telefono, validar_nombre,
+    validar_rif, validar_direccion,
+)
+
 
 class EmpresaSerializer(serializers.ModelSerializer):
     class Meta:
@@ -8,6 +12,16 @@ class EmpresaSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def validate_rif(self, value):
-        if not re.match(r'^[VEJPG]-\d{8}-\d$', value):
-            raise serializers.ValidationError("El formato del RIF debe ser J-12345678-9.")
-        return value.upper()
+        return validar_rif(value)
+
+    def validate_nombre(self, value):
+        return validar_nombre(value, campo="nombre")
+
+    def validate_telefono(self, value):
+        return validar_telefono(value)
+
+    def validate_email(self, value):
+        return validar_email(value)
+
+    def validate_direccion_fiscal(self, value):
+        return validar_direccion(value)
