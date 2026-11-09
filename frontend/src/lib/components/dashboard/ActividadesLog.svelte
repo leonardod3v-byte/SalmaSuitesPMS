@@ -59,7 +59,7 @@
 
 <section class="bg-hotel-surface rounded-2xl p-6 border border-hotel-border h-100 flex flex-col">
     <div class="flex justify-between items-baseline mb-4 shrink-0">
-        <h3 class="font-display text-lg text-hotel-text-primary">Actividad</h3>
+        <h3 class="font-display text-xl text-hotel-text-primary italic flex items-center gap-2">Actividad</h3>
         <p class="text-[10px] uppercase tracking-[0.2em] text-hotel-text-tertiary">{actividades.length} registros</p>
     </div>
 

@@ -66,8 +66,8 @@
           w-full rounded-lg px-4 py-3.5 text-sm transition-all duration-200
           bg-hotel-bg text-hotel-text-primary outline-none border
           placeholder:text-hotel-text-tertiary
-          {error 
-            ? 'border-hotel-error focus:ring-4 focus:ring-hotel-error/15' 
+          {error
+            ? 'border-hotel-error focus:ring-4 focus:ring-hotel-error/15'
             : 'border-hotel-border focus:border-hotel-gold focus:ring-4 focus:ring-hotel-gold/10 hover:border-hotel-gold-dark'}
         "
       />
@@ -84,8 +84,8 @@
           w-full rounded-lg px-4 py-3.5 text-sm transition-all duration-200
           bg-hotel-bg text-hotel-text-primary outline-none border
           placeholder:text-hotel-text-tertiary
-          {error 
-            ? 'border-hotel-error focus:ring-4 focus:ring-hotel-error/15' 
+          {error
+            ? 'border-hotel-error focus:ring-4 focus:ring-hotel-error/15'
             : 'border-hotel-border focus:border-hotel-gold focus:ring-4 focus:ring-hotel-gold/10 hover:border-hotel-gold-dark'}
         "
       />

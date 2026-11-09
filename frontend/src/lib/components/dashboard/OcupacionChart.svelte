@@ -120,7 +120,7 @@
 <section class="lg:col-span-2 bg-hotel-surface rounded-2xl p-6 border border-hotel-border h-100 flex flex-col">
     <div class="flex justify-between items-start mb-6 shrink-0">
         <div>
-            <h3 class="font-display text-lg text-hotel-text-primary">Ocupación Semanal</h3>
+            <h3 class="font-display text-xl text-hotel-text-primary italic flex items-center gap-2">Ocupación Semanal</h3>
             <p class="text-[10px] uppercase tracking-[0.2em] text-hotel-text-tertiary mt-0.5">
                 {new Date(data.semana + 'T12:00:00').toLocaleDateString('es-VE', { day: '2-digit', month: 'short' })} —
                 {new Date(new Date(data.semana + 'T12:00:00').getTime() + 6 * 86400000).toLocaleDateString('es-VE', { day: '2-digit', month: 'short' })}
